@@ -150,11 +150,28 @@ npx jev queue --sort pay --min-pay 60k              # look before you run
 
 A floor is in US dollars unless you name the currency (`CAD 35/h`). It
 judges by the top of a posting's range, and a job that states no pay, or
-states it in another currency, is kept. `--sort pay` puts the jobs that
+states it in another currency, is kept.
+
+The floor is for remote work and for a place where living costs the
+national average. An office somewhere dearer has to clear more: the floor
+times the metro's cost of living (`PAY.costOfLiving` in `src/config.ts`,
+BEA's Regional Price Parities, where 100 is the US average). With a
+`40/h` floor, a New York job (112.6) needs about $45 an hour. A posting
+with several offices is held to the cheapest, and a city not in the table
+counts as average. Add a metro from BEA's table, never from a guess.
+
+If your profile says `remote: "last_resort"` or `"no"`, a remote-only job
+must state pay that clears the floor; one that states none is left out. A
+job with an office is still kept when it states no pay. `--sort pay` puts the jobs that
 state pay first, highest first, and the rest after them by fit. That
 pushes a weaker fit that happens to state good pay ahead of a stronger one
 that states none, so the default stays by fit. The daily run takes a floor
 as `minPay` in `data/policy.json` and never sorts by pay.
+
+Set `preferences.countries` to the only countries you will work in (for
+example `["United States"]`), and a job with an office anywhere else, or
+remote limited to another country, is left out before it is rated. Plain
+"Remote" is kept and rated.
 
 The tool does not drop a job only because it asks for another graduation
 date. It ranks the job lower and leaves the choice to you.

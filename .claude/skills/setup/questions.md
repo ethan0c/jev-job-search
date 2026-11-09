@@ -49,6 +49,7 @@ their status, they should check before applying.
 | How long you can work: term lengths, or "permanent" | `preferences.availability` |
 | The places you want to work, best first | `preferences.preferredLocations` |
 | Will you relocate? | `preferences.willingToRelocate` |
+| The only countries you will work in, if any | `preferences.countries` |
 | Remote work: preferred, open to it, only as a last resort, or no | `preferences.remote` |
 | Can you work in an office or hybrid if the job needs it? | a standing answer |
 

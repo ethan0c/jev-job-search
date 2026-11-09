@@ -40,4 +40,7 @@ Things to know:
   `open`, `last_resort` or `no`. A change to `remote` takes effect at the
   next `/discover` at no cost; a change to the listed places makes JEV rate
   the queue again.
+- `preferences.countries` (for example `["United States"]`) leaves out
+  every job with an office elsewhere before it is rated. Empty means
+  anywhere.
 - These files are git-ignored. Never commit them.

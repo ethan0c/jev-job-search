@@ -47,7 +47,9 @@ The best N is by fit. Two choices change which jobs are taken, and both
 are the user's to ask for:
 
 - `--min-pay 30/h` (or `60k`, `CAD 35/h`) leaves out jobs whose stated pay
-  is under the floor. A job that states no pay is kept.
+  is under the floor, raised for a dear city. A job that states no pay is
+  kept, except a remote-only one when the profile takes remote as a last
+  resort.
 - `--sort pay` takes the highest stated pay first, then the rest by fit.
   Say once that this puts weaker fits ahead of stronger ones that state no
   pay. Show `npx jev queue --sort pay` first so they see the order.

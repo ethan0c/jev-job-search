@@ -199,6 +199,27 @@ export const PAY = {
   contextChars: 120,
   /** Amounts outside these are not pay (a funding round, a stipend, a typo), by period. */
   plausible: { hour: [7, 500], week: [280, 20000], month: [1000, 60000], year: [12000, 1000000] },
+  /**
+   * How much living costs in a metro, as BEA Regional Price Parities, all items, 2023 (U.S. = 100).
+   * A pay floor is for a place at 100 and for remote work; a job in an office here must clear the
+   * floor times index / 100. A place not listed counts as 100: no figure is guessed. Only values
+   * read from BEA's series (via FRED) are here; add a metro from the same table, not from memory.
+   * `match` is matched as whole words against a posting's locations.
+   */
+  costOfLiving: [
+    { place: "San Francisco", match: "san francisco|sf|oakland|berkeley|south san francisco|redwood city|san mateo", index: 117.6 },
+    { place: "San Jose", match: "san jose|sunnyvale|santa clara|mountain view|palo alto|cupertino|menlo park", index: 113.1 },
+    { place: "Seattle", match: "seattle|bellevue|redmond|kirkland|tacoma", index: 112.7 },
+    { place: "New York", match: "new york|nyc|manhattan|brooklyn|jersey city|newark", index: 112.6 },
+    { place: "Boston", match: "boston|cambridge, ma|somerville", index: 110.4 },
+    { place: "Sacramento", match: "sacramento|roseville", index: 109.1 },
+    { place: "Denver", match: "denver|aurora, co|lakewood, co", index: 105.8 },
+    { place: "Orlando", match: "orlando", index: 101.6 },
+    { place: "Raleigh", match: "raleigh", index: 98.4 },
+    { place: "Austin", match: "austin|round rock", index: 98.3 },
+    { place: "St. Louis", match: "st\\.? louis", index: 95.0 },
+    { place: "Columbus", match: "columbus, oh|columbus, ohio", index: 94.6 },
+  ],
 } as const;
 
 /** Applied when the posting asks for a graduation date the candidate does not have. They can still apply, so it ranks lower instead of being dropped. */

@@ -40,6 +40,30 @@ export function locationTier(locations: string[]): LocationTier {
   return "international";
 }
 
+const isCountry = (want: string, c: "Canada" | "United States") =>
+  c === "Canada" ? /^(canada|ca|can)$/i.test(want.trim()) : /^(united states( of america)?|u\.?s\.?a?\.?)$/i.test(want.trim());
+
+/**
+ * Why a job is outside the countries the person will work in, or null. A posting that names Canada
+ * or the United States (an office, or remote limited to one) is held to that country; one with an
+ * office in any other country is outside. Plain "Remote" and a posting with no location are kept:
+ * the rating weighs them.
+ */
+export function outsideCountries(locations: string[], countries: string[]): string | null {
+  if (!countries.length) return null;
+  const tier = locationTier(locations);
+  if (tier === "unclear") return null;
+  // "Remote (US or Canada)" names both: either one wanted keeps it.
+  const all = locations.join(" | ");
+  const named = [
+    ...(CA_PROVINCE.test(all) || /\bCAN\b/.test(all) ? (["Canada"] as const) : []),
+    ...(US_STATE.test(all) || US_CITY.test(all) ? (["United States"] as const) : []),
+  ];
+  if (named.length) return named.some((c) => countries.some((w) => isCountry(w, c))) ? null : `in ${named.join(" or ")}, outside the countries you work in`;
+  if (tier === "international") return "outside the countries you work in";
+  return null;
+}
+
 /** us: the candidate's standing in the United States. A candidate who may work there is not ruled out by "no sponsorship". */
 export function preFilter(
   job: Job,
@@ -49,6 +73,8 @@ export function preFilter(
   maxAgeDays: number = DISCOVER.maxAgeDays,
   /** True for a job on an account board where the person has an account, or let the tool make one. */
   mayApplyWithAccount: (url: string) => boolean = () => false,
+  /** `preferences.countries`: the only countries the person will work in. Empty means anywhere. */
+  countries: string[] = [],
 ): string | null {
   if (job.ats === "workday" && !mayApplyWithAccount(job.url)) return "workday (needs an account per company)";
   if (job.ats === "taleo" || job.ats === "oracle" || job.ats === "successfactors" || job.ats === "icims" || job.ats === "amazon") {
@@ -69,5 +95,7 @@ export function preFilter(
   if (tier === "us" && job.sponsorship === "none" && !us.authorized) return "US role, no sponsorship";
   if (tier === "us" && job.sponsorship === "citizenship" && !us.citizen) return "US citizenship required";
   if (/\bunpaid\b|volunteer/i.test(job.title)) return "unpaid";
+  const outside = outsideCountries(job.locations, countries);
+  if (outside) return outside;
   return null;
 }

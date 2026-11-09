@@ -119,3 +119,39 @@ export function formatPay(p: Pay | null): string {
   const range = p.min === p.max ? `${sign}${n(p.min)}` : `${sign}${n(p.min)} to ${n(p.max)}`;
   return `${range} a${p.period === "hour" ? "n" : ""} ${p.period}`;
 }
+
+const COST = PAY.costOfLiving.map((c) => ({ ...c, re: new RegExp(`\\b(?:${c.match})\\b`, "i") }));
+
+/**
+ * What living costs where a job's office is (`PAY.costOfLiving`, U.S. = 100). With several offices
+ * the cheapest counts, since the person could choose it. Remote work, and a place not listed, is 100.
+ */
+export function costOfLiving(locations: string[]): { index: number; place: string | null } {
+  const onsite = locations.filter((l) => l.trim() && !/remote/i.test(l));
+  if (!onsite.length) return { index: 100, place: null };
+  let best: { index: number; place: string | null } | null = null;
+  for (const l of onsite) {
+    const hit = COST.find((c) => c.re.test(l));
+    const here = hit ? { index: hit.index, place: hit.place } : { index: 100, place: null };
+    if (!best || here.index < best.index) best = here;
+  }
+  return best ?? { index: 100, place: null };
+}
+
+/**
+ * Why a floor leaves a job out, or null when it may go. The floor rises with what living costs at
+ * the job's office, so $40 remote and $40 in New York are not taken as the same. With
+ * `remoteNeedsPay` (a profile that takes remote only as a last resort), a job that is remote only
+ * must state pay that clears the floor; a job with an office that states none is kept.
+ */
+export function floorRefuses(job: { description?: string | undefined; locations: string[] }, floor: PayFloor, o: { remoteNeedsPay?: boolean } = {}): string | null {
+  const pay = payOf(job);
+  const remoteOnly = job.locations.some((l) => l.trim()) && job.locations.every((l) => !l.trim() || /remote/i.test(l));
+  const readable = pay && pay.currency === floor.currency;
+  if (!readable) return remoteOnly && o.remoteNeedsPay ? `remote, and it states no pay to hold against your ${floor.text} floor` : null;
+  const { index, place } = costOfLiving(job.locations);
+  const need = (floor.hourly * index) / 100;
+  if (hourly(pay.max, pay.period) >= need - 1e-9) return null;
+  const sign = floor.currency === "USD" ? "$" : `${floor.currency} `;
+  return `it states ${formatPay(pay)}, under your floor${place ? ` of ${sign}${need.toFixed(2)} an hour in ${place}` : ` of ${floor.text}`}`;
+}

@@ -20,7 +20,13 @@ changed for a person using the tool and what changed for a contributor.
   run applies to them again. A row without a link is recorded only when
   exactly one queued job has its employer and title.
 - `preferences.remote` takes `last_resort`: remote jobs stay in the queue but
-  rank under the same job in an office.
+  rank under the same job in an office. With a pay floor, a remote-only job
+  must then state pay that clears it.
+- A pay floor rises with what living costs at the job's office, from BEA's
+  Regional Price Parities (`PAY.costOfLiving`); remote work is held to the
+  floor itself.
+- `preferences.countries` leaves out jobs in any other country before they
+  are rated.
 
 ### Changed
 - A job's place is weighed by the profile (`preferredLocations`,

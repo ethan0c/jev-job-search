@@ -41,7 +41,7 @@ import { formatChecks, isReadyToRun, nextStep, runChecks } from "./doctor.js";
 import { JevClient } from "./jev/client.js";
 import { loadKnowledge, shareKnowledge } from "./knowledge/sites.js";
 import { entryFor, loadQueue, mutateQueue, sortByPay, sortEntries, updateEntry, QueueStatus, type QueueEntry } from "./jobs/queue.js";
-import { meetsFloor, parsePayFloor, payOf, type PayFloor } from "./jobs/pay.js";
+import { floorRefuses, parsePayFloor, type PayFloor } from "./jobs/pay.js";
 import { parseAppliedCsv, planImport, type AppliedRow, type ImportStep } from "./jobs/importApplied.js";
 import { formatCost, loadCost } from "./log/cost.js";
 import { appliedRecords, loadRows, manualRecords, saveRows, toRecord, upsertEntry } from "./log/csv.js";
@@ -97,8 +97,8 @@ program
   .option("--json")
   .action((o: { all?: boolean; limit: number; json?: boolean; sort?: string; minPay?: string }) => {
     const q = loadQueue();
-    const { sort, minPay } = choosing(o);
-    const shown = (o.all ? q.entries : q.entries.filter((e) => e.status === "queued")).filter((e) => !minPay || meetsFloor(payOf(e.job), minPay) !== false);
+    const { sort, minPay, remoteNeedsPay: strict } = choosing(o);
+    const shown = (o.all ? q.entries : q.entries.filter((e) => e.status === "queued")).filter((e) => !minPay || !floorRefuses(e.job, minPay, { remoteNeedsPay: strict }));
     const entries = (sort === "pay" ? sortByPay(shown, minPay?.currency ?? PAY.defaultCurrency) : sortEntries(shown)).slice(0, o.limit);
     if (o.json) console.log(JSON.stringify(entries.map(brief), null, 2));
     else printTable(entries);
@@ -109,10 +109,19 @@ program
 type ApplyOptions = { count: number; dry?: boolean; submit?: boolean; fresh?: boolean; json?: boolean; tailor?: boolean; cover?: boolean; plain?: boolean; resubmit?: boolean; sort?: string; minPay?: string };
 
 /** --sort and --min-pay, read and checked before a browser is touched. */
-function choosing(o: { sort?: string; minPay?: string }): { sort: "fit" | "pay"; minPay?: PayFloor } {
+function choosing(o: { sort?: string; minPay?: string }): { sort: "fit" | "pay"; minPay?: PayFloor; remoteNeedsPay: boolean } {
   const sort = o.sort ?? "fit";
   if (sort !== "fit" && sort !== "pay") throw new Error(`--sort takes fit or pay, not "${sort}"`);
-  return { sort, ...(o.minPay ? { minPay: parsePayFloor(o.minPay) } : {}) };
+  return { sort, ...(o.minPay ? { minPay: parsePayFloor(o.minPay) } : {}), remoteNeedsPay: remoteNeedsPay() };
+}
+
+/** A profile that takes remote work only as a last resort, or not at all, asks a remote job to prove its pay against a floor. */
+function remoteNeedsPay(): boolean {
+  try {
+    return ["last_resort", "no"].includes(loadProfile().preferences.remote);
+  } catch {
+    return false;
+  }
 }
 
 /** Takes the browser for a command that drives it, tidies what an interrupted run left, and gives the lock back when the work ends. */
@@ -245,7 +254,7 @@ program
         say(`[daily] ${localDay(new Date())}: looking for jobs`);
         await discover(loadProfile(), jev, { boards: true, log: say }).catch((err: unknown) => say(`[daily] the search failed, so the queue is used as it is: ${err instanceof Error ? err.message : String(err)}`));
       }
-      return dailyRun(policy, { ...(o.target !== undefined ? { target: o.target } : {}), ...(o.maxAttempts !== undefined ? { maxAttempts: o.maxAttempts } : {}), ...(o.maxMinutes !== undefined ? { maxMinutes: o.maxMinutes } : {}), dry }, { now: () => new Date(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), random: Math.random, queue: () => loadQueue().entries, run, gate: () => accountGate(), jevSpentToday, log: say, stop: stopRequested });
+      return dailyRun(policy, { ...(o.target !== undefined ? { target: o.target } : {}), ...(o.maxAttempts !== undefined ? { maxAttempts: o.maxAttempts } : {}), ...(o.maxMinutes !== undefined ? { maxMinutes: o.maxMinutes } : {}), dry, remoteNeedsPay: remoteNeedsPay() }, { now: () => new Date(), sleep: (ms) => new Promise((r) => setTimeout(r, ms)), random: Math.random, queue: () => loadQueue().entries, run, gate: () => accountGate(), jevSpentToday, log: say, stop: stopRequested });
     });
     clearStop();
     if (!dry) {

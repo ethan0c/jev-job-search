@@ -124,6 +124,8 @@ export const ProfileSchema = z.object({
     /** How a remote job ranks (`REMOTE_MULTIPLIER`) and what a form is told: "last_resort" is open to remote but wants an office first. */
     remote: z.enum(["preferred", "open", "last_resort", "no"]),
     preferredLocations: z.array(z.string()),
+    /** The only countries the person will work in, as "United States" or "Canada". A job in an office elsewhere is left out before it is rated. Empty means anywhere. */
+    countries: z.array(z.string()).default([]),
     howDidYouHear: z.string(),
     /** What to do when a form requires references. "skip" logs and moves on. */
     references: z.enum(["skip"]),

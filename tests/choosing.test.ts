@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { LOCATION_MULTIPLIER, REMOTE_MULTIPLIER } from "../src/config.js";
-import { locationTier } from "../src/jobs/hardFilters.js";
+import { locationTier, outsideCountries, preFilter } from "../src/jobs/hardFilters.js";
 import { isoDay, parseAppliedCsv, planImport } from "../src/jobs/importApplied.js";
 import { locationWeight, type LocationPrefs } from "../src/jobs/location.js";
 import { jobId } from "../src/jobs/normalize.js";
-import { formatPay, meetsFloor, parsePayFloor, payFromText } from "../src/jobs/pay.js";
+import { costOfLiving, floorRefuses, formatPay, meetsFloor, parsePayFloor, payFromText } from "../src/jobs/pay.js";
 import { sortByPay, type QueueEntry } from "../src/jobs/queue.js";
 import { pickJobs } from "../src/run/pipeline.js";
 import { Policy, policyRefuses } from "../src/run/policy.js";
@@ -97,7 +97,7 @@ describe("choosing jobs by pay", () => {
   });
   it("keeps the daily policy's floor in code", () => {
     const p = Policy.parse({ minPay: "30/h" });
-    expect(policyRefuses({ ...low, fit: { ...low.fit!, score: 0.9 } }, p)).toMatch(/stated pay is under 30\/h/);
+    expect(policyRefuses({ ...low, fit: { ...low.fit!, score: 0.9 } }, p)).toMatch(/under your floor/);
     expect(policyRefuses({ ...silent, fit: { ...silent.fit!, score: 0.9 } }, p)).toBeNull();
     expect(Policy.safeParse({ minPay: "lots" }).success).toBe(false);
     expect(Policy.parse({}).minPay).toBe("");
@@ -182,5 +182,59 @@ describe("import-applied", () => {
   it("leaves a job already on record alone", () => {
     const sent = entry("d", { status: "applied" });
     expect(planImport([sent], [{ company: sent.job.company, title: "", link: sent.job.url, appliedOn: null, line: 2 }])[0]?.kind).toBe("known");
+  });
+});
+
+describe("a floor that knows what living costs", () => {
+  const floor = parsePayFloor("40/h");
+  const job = (locations: string[], description = "") => ({ locations, description });
+
+  it("raises the floor where living costs more, and leaves remote work at the floor", () => {
+    expect(costOfLiving(["New York, NY"]).index).toBeGreaterThan(100);
+    expect(costOfLiving(["Remote"]).index).toBe(100);
+    expect(costOfLiving(["Harrisburg, PA"]).index).toBe(100);
+    expect(floorRefuses(job(["Remote"], "Pay: $40 per hour"), floor)).toBeNull();
+    expect(floorRefuses(job(["New York, NY"], "Pay: $42 per hour"), floor)).toMatch(/in New York/);
+    expect(floorRefuses(job(["New York, NY"], "Pay: $46 per hour"), floor)).toBeNull();
+    expect(floorRefuses(job(["Redmond, WA"], "Pay: $44 per hour"), floor)).toMatch(/in Seattle/);
+  });
+  it("takes the cheapest office when a posting lists several", () => {
+    expect(costOfLiving(["New York, NY", "Austin, TX"]).place).toBe("Austin");
+    expect(floorRefuses(job(["New York, NY", "Austin, TX"], "Pay: $40 per hour"), floor)).toBeNull();
+  });
+  it("asks a remote-only job to prove its pay when remote is a last resort, and no one else", () => {
+    expect(floorRefuses(job(["Remote"]), floor)).toBeNull();
+    expect(floorRefuses(job(["Remote"]), floor, { remoteNeedsPay: true })).toMatch(/remote/);
+    expect(floorRefuses(job(["New York, NY", "Remote"]), floor, { remoteNeedsPay: true })).toBeNull();
+    expect(floorRefuses(job(["Austin, TX"]), floor, { remoteNeedsPay: true })).toBeNull();
+    expect(floorRefuses(job(["Remote"], "Pay: $41 per hour"), floor, { remoteNeedsPay: true })).toBeNull();
+  });
+  it("carries the remote rule into the daily policy", () => {
+    const remote = entry("r", { locations: ["Remote"], score: 0.9 });
+    const p = Policy.parse({ minPay: "40/h" });
+    expect(policyRefuses(remote, p)).toBeNull();
+    expect(policyRefuses(remote, p, { remoteNeedsPay: true })).toMatch(/remote/);
+  });
+});
+
+describe("the countries a person works in", () => {
+  const us = ["United States"];
+  it.each([
+    [["New York, NY"], null],
+    [["Remote"], null],
+    [[], null],
+    [["Remote (US or Canada)"], null],
+    [["Toronto, ON"], /Canada/],
+    [["Remote - Canada"], /Canada/],
+    [["London, UK"], /outside/],
+  ])("%j", (locations, want) => {
+    const got = outsideCountries(locations as string[], us);
+    if (want === null) expect(got).toBeNull();
+    else expect(got).toMatch(want);
+  });
+  it("leaves every country open when the profile names none, and filters before rating", () => {
+    expect(outsideCountries(["London, UK"], [])).toBeNull();
+    const london = { id: "l", source: "t", company: "Acme", title: "Software Engineer Intern", url: "https://job-boards.greenhouse.io/acme/jobs/7", ats: "greenhouse" as const, locations: ["London, UK"], postedAt: null, terms: [], sponsorship: "unknown" as const, degrees: [], category: null };
+    expect(preFilter(london, new Date(), () => false, undefined, undefined, undefined, us)).toMatch(/outside/);
   });
 });

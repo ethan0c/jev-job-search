@@ -18,7 +18,7 @@ import { logNotes } from "../answers/resolve.js";
 import { JevClient } from "../jev/client.js";
 import { applyUrlFor, hostIs, type Job } from "../jobs/normalize.js";
 import { loadQueue, mutateQueue, RUN_OWNED, sortByPay, sortEntries, updateEntry, type QueueEntry } from "../jobs/queue.js";
-import { meetsFloor, payOf, type PayFloor } from "../jobs/pay.js";
+import { floorRefuses, type PayFloor } from "../jobs/pay.js";
 import { withStore } from "../util/store.js";
 import { rememberWalledHost } from "../jobs/walled.js";
 import { learn, loadKnowledge } from "../knowledge/sites.js";
@@ -49,12 +49,12 @@ const hostOf = (url: string) => {
  * lets an unconfirmed one through until it is settled.
  */
 /** How a run without ids chooses from the queue: by fit (the default) or by stated pay, and with a floor on stated pay. */
-export type PickOptions = { count: number; dry: boolean; resubmit?: boolean; minPay?: PayFloor; sort?: "fit" | "pay" };
+export type PickOptions = { count: number; dry: boolean; resubmit?: boolean; minPay?: PayFloor; sort?: "fit" | "pay"; remoteNeedsPay?: boolean };
 
 export function takeJobs(ids: string[], o: PickOptions): QueueEntry[] {
   const say = ({ refused, underFloor }: ReturnType<typeof pickJobs>) => {
     for (const r of refused) console.log(`${r.id}  not taken: ${r.why}`);
-    if (underFloor) console.log(`${underFloor} queued job(s) left for another run: their stated pay is under ${o.minPay?.text}`);
+    if (underFloor) console.log(`${underFloor} queued job(s) left for another run by your ${o.minPay?.text} floor (npx jev queue --min-pay ${o.minPay?.text} shows what is left)`);
   };
   if (o.dry) {
     const got = pickJobs(loadQueue().entries, ids, o, accountGate());
@@ -84,8 +84,8 @@ export function pickJobs(entries: QueueEntry[], ids: string[], o: PickOptions, g
     let underFloor = 0;
     for (const e of ordered) {
       if (picked.length >= o.count) break;
-      // A floor leaves out only a job whose stated pay is under it; a job that states none is kept.
-      if (o.minPay && meetsFloor(payOf(e.job), o.minPay) === false) {
+      // A floor leaves out a job whose stated pay is under it where it is; a job that states none is kept, unless it is remote only and remote is a last resort.
+      if (o.minPay && floorRefuses(e.job, o.minPay, { remoteNeedsPay: !!o.remoteNeedsPay })) {
         underFloor++;
         continue;
       }

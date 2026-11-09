@@ -7,7 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
 import { DAILY, DISCOVER, PATHS } from "../config.js";
 import type { QueueEntry } from "../jobs/queue.js";
-import { meetsFloor, parsePayFloor, payOf, type PayFloor } from "../jobs/pay.js";
+import { floorRefuses, parsePayFloor, type PayFloor } from "../jobs/pay.js";
 
 const floorOrNull = (s: string): PayFloor | null => {
   try {
@@ -52,14 +52,16 @@ export function loadPolicy(file = PATHS.policy): Policy | null {
 }
 
 /** Why the policy keeps a job out of the daily run, or null when it may go. */
-export function policyRefuses(e: QueueEntry, p: Policy): string | null {
+/** remoteNeedsPay: the profile takes remote only as a last resort, so a remote job must state pay that clears `minPay`. */
+export function policyRefuses(e: QueueEntry, p: Policy, o: { remoteNeedsPay?: boolean } = {}): string | null {
   const company = e.job.company.toLowerCase();
   const excluded = p.excludeEmployers.find((x) => x.trim() && company.includes(x.trim().toLowerCase()));
   if (excluded) return `you excluded ${excluded}`;
   if (p.boards.length && !p.boards.includes(e.job.ats)) return `${e.job.ats} is not one of your boards`;
   if ((e.fit?.score ?? 0) < p.minScore) return `its fit score is under ${p.minScore}`;
   const floor = p.minPay.trim() ? floorOrNull(p.minPay) : null;
-  if (floor && meetsFloor(payOf(e.job), floor) === false) return `its stated pay is under ${floor.text}`;
+  const underFloor = floor ? floorRefuses(e.job, floor, o) : null;
+  if (underFloor) return underFloor;
   const tier = e.fit?.locationTier;
   if (p.where.length && !(tier && (p.where as string[]).includes(tier))) return `it is not in ${p.where.join(", ")}`;
   const level = (e.fit?.answers.level as { choice?: string } | undefined)?.choice;

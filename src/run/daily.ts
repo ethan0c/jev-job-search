@@ -134,7 +134,7 @@ export function countToday(entries: QueueEntry[], today: string) {
   return { sent, unconfirmed, board, employer, open, last };
 }
 
-export async function dailyRun(policy: Policy, o: { target?: number; maxAttempts?: number; maxMinutes?: number; dry: boolean }, deps: DailyDeps): Promise<DailySummary> {
+export async function dailyRun(policy: Policy, o: { target?: number; maxAttempts?: number; maxMinutes?: number; dry: boolean; remoteNeedsPay?: boolean }, deps: DailyDeps): Promise<DailySummary> {
   const started = deps.now();
   const today = localDay(started);
   const target = Math.min(o.target ?? policy.target, DAILY.maxTarget);
@@ -177,7 +177,7 @@ export async function dailyRun(policy: Policy, o: { target?: number; maxAttempts
     const may = (e: QueueEntry): boolean => {
       const b = boardOf(e.job);
       const p = pauses[b];
-      if (tried.has(e.job.id) || policyRefuses(e, policy)) return false;
+      if (tried.has(e.job.id) || policyRefuses(e, policy, { remoteNeedsPay: !!o.remoteNeedsPay })) return false;
       if (p && Date.parse(p.until) > deps.now().getTime()) return false;
       if (sentHere(b) >= DAILY.perBoard) return false;
       if ((day.employer.get(employerOf(e.job)) ?? 0) >= DAILY.perEmployerPerDay || summary.sent.some((s) => s.company.trim().toLowerCase() === employerOf(e.job))) return false;
