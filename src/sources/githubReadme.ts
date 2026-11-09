@@ -131,11 +131,13 @@ function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-export async function fetchReadmeSources(): Promise<Job[]> {
+/** countries: the profile's `preferences.countries`. The lists of Canadian jobs are read only when Canada is one of them, or none is named. */
+export async function fetchReadmeSources(countries: string[] = []): Promise<Job[]> {
+  const canada = !countries.length || countries.some((c) => /^(canada|ca|can)$/i.test(c.trim()));
   const pairs: Array<[string, string]> = [
-    ["canadian-2027", DISCOVER.sources.canadianInternships2027],
+    ...(canada ? ([["canadian-2027", DISCOVER.sources.canadianInternships2027]] as Array<[string, string]>) : []),
     ["vansh-2027", DISCOVER.sources.vanshSummer2027],
-    ["canada-summer-2027", DISCOVER.sources.canadaSummer2027],
+    ...(canada ? ([["canada-summer-2027", DISCOVER.sources.canadaSummer2027]] as Array<[string, string]>) : []),
   ];
   const out: Job[] = [];
   for (const [source, url] of pairs) {

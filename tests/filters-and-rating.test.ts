@@ -14,8 +14,8 @@ const job = (over: Partial<Job> = {}): Job => ({
 
 describe("locationTier", () => {
   it.each([
-    [["Vancouver, BC, Canada"], "vancouver"],
-    [["Burnaby, BC"], "vancouver"],
+    [["Vancouver, BC, Canada"], "canada"],
+    [["Burnaby, BC"], "canada"],
     [["Toronto, ON"], "canada"],
     [["Montreal, QC, Canada"], "canada"],
     [["Remote"], "remote"],
@@ -99,10 +99,12 @@ describe("scoreFromAnswers", () => {
     expect(fit.score).toBeGreaterThan(DISCOVER.applyThreshold);
     expect(fit.locationTier).toBe("canada");
   });
-  it("ranks Vancouver above the same job in the US, and fresh above stale", () => {
-    const van = scoreFromAnswers(job({ locations: ["Vancouver, BC"] }), answers(), now).score;
-    const us = scoreFromAnswers(job({ locations: ["Austin, TX"] }), answers({ work_auth: { choice: "us_sponsors" } }), now).score;
-    const stale = scoreFromAnswers(job({ locations: ["Vancouver, BC"], postedAt: "2026-09-19" }), answers(), now).score;
+  it("ranks a listed city above the same job where sponsorship is needed, and fresh above stale", () => {
+    // A candidate who lists Vancouver and may work in Canada only.
+    const where = { preferred: ["Vancouver, BC"], authorized: ["Canada"], remote: "open" as const };
+    const van = scoreFromAnswers(job({ locations: ["Vancouver, BC"] }), answers(), now, undefined, where).score;
+    const us = scoreFromAnswers(job({ locations: ["Austin, TX"] }), answers({ work_auth: { choice: "us_sponsors" } }), now, undefined, where).score;
+    const stale = scoreFromAnswers(job({ locations: ["Vancouver, BC"], postedAt: "2026-09-19" }), answers(), now, undefined, where).score;
     expect(van).toBeGreaterThan(us);
     expect(van).toBeGreaterThan(stale);
   });

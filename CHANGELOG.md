@@ -11,7 +11,35 @@ changed for a person using the tool and what changed for a contributor.
 
 ## [Unreleased]
 
+### Added
+- `apply`, `fill` and `queue` take `--min-pay` (as `30/h`, `60k` or
+  `CAD 35/h`) and `--sort pay`. Pay is read from what a posting states; a
+  job that states none is kept and ranked by fit. The daily policy takes a
+  floor as `minPay`.
+- `import-applied <file>` records applications sent without the tool, so no
+  run applies to them again. A row without a link is recorded only when
+  exactly one queued job has its employer and title.
+- `preferences.remote` takes `last_resort`: remote jobs stay in the queue but
+  rank under the same job in an office. With a pay floor, a remote-only job
+  must then state pay that clears it.
+- A pay floor rises with what living costs at the job's office, from BEA's
+  Regional Price Parities for every US metro and state
+  (`knowledge/cost-of-living.json`, rebuilt with `npm run cost-data`), with
+  suburbs and regions such as McLean, Plano and "DMV" mapped in
+  `PAY.costAliases`. Remote work is held to the floor itself.
+- `preferences.countries` leaves out jobs in any other country before they
+  are rated.
+
 ### Changed
+- A job's place is weighed by the profile (`preferredLocations`,
+  `authorizedCountries`, `remote`) instead of a fixed list that favoured one
+  city. For a candidate outside Canada, jobs in their own country no longer
+  rank under remote ones.
+- The location tiers are neutral: `vancouver` is gone, and a policy that
+  still names it reads it as `canada`. The lists of Canadian internships are
+  read only when `preferences.countries` is empty or includes Canada.
+- A form that asks for a remote preference is told what the profile says for
+  `no` and `last_resort`, where it used to say "open to remote" for both.
 - A run takes at most three roles from one employer, never two in a row, and
   waits eight minutes between two applications to the same employer.
   Submissions to Greenhouse are spaced 90 seconds apart.

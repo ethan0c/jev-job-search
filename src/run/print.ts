@@ -1,6 +1,7 @@
 /** How a run shows its work on the terminal: one block per form, one line per field. */
 import type { FillReport } from "../browser/report.js";
 import type { QueueEntry } from "../jobs/queue.js";
+import { formatPay, payOf } from "../jobs/pay.js";
 
 const headline = (r: FillReport) => {
   if (r.sent) return "SENT by its last Next";
@@ -35,6 +36,7 @@ export function brief(e: QueueEntry) {
     score: e.fit?.score ?? null,
     status: e.status,
     reason: e.statusReason,
+    pay: formatPay(payOf(e.job)) || null,
     notes: e.fit?.reasons ?? [],
   };
 }
@@ -42,6 +44,7 @@ export function brief(e: QueueEntry) {
 export function printTable(entries: QueueEntry[]): void {
   for (const e of entries) {
     const score = e.fit ? e.fit.score.toFixed(2) : "  -  ";
-    console.log(`${score}  ${e.job.postedAt ?? "          "}  ${e.job.ats.padEnd(13)} ${e.job.company.slice(0, 28).padEnd(28)} ${e.job.title.slice(0, 60).padEnd(60)} ${e.job.locations.join(" / ").slice(0, 40)}  [${e.job.id}]`);
+    const pay = formatPay(payOf(e.job));
+    console.log(`${score}  ${e.job.postedAt ?? "          "}  ${e.job.ats.padEnd(13)} ${e.job.company.slice(0, 28).padEnd(28)} ${e.job.title.slice(0, 60).padEnd(60)} ${e.job.locations.join(" / ").slice(0, 40)}${pay ? `  ${pay}` : ""}  [${e.job.id}]`);
   }
 }

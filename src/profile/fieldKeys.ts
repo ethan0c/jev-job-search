@@ -162,7 +162,12 @@ export function valueFor(profile: Profile, key: ProfileKey): string | null {
     case "availability": return profile.preferences.availability;
     case "salary_expectation": return profile.preferences.salaryExpectation || null;
     case "willing_to_relocate": return yes(profile.preferences.willingToRelocate);
-    case "remote_preference": return profile.preferences.remote === "preferred" ? "Remote preferred, open to hybrid or onsite" : "Open to remote, hybrid or onsite";
+    case "remote_preference": return {
+      preferred: "Remote preferred, open to hybrid or onsite",
+      open: "Open to remote, hybrid or onsite",
+      last_resort: "Onsite or hybrid preferred, open to remote",
+      no: "Onsite or hybrid",
+    }[profile.preferences.remote];
     case "preferred_location": return profile.preferences.preferredLocations[0] ?? null;
     case "how_did_you_hear": return profile.preferences.howDidYouHear;
     case "answer_yes": return "Yes";

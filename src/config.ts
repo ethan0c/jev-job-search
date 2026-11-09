@@ -29,6 +29,8 @@ export const PATHS = {
   cache: path.join(ROOT, "data", "cache"),
   /** What every user's runs have taught the tool about sites. Shipped with the repository. */
   knowledgeShipped: path.join(ROOT, "knowledge", "sites.json"),
+  /** BEA's Regional Price Parities for every metro and state, built by `npm run cost-data`. Tracked: it holds no one's data. */
+  costOfLiving: path.join(ROOT, "knowledge", "cost-of-living.json"),
   /** What this machine's runs have learned since. Merged with the shipped notes on reading. */
   knowledgeLocal: path.join(ROOT, "data", "knowledge.json"),
   /** Left by earlier versions: sites found behind a sign-in. Read once more and folded into the notes above. */
@@ -161,13 +163,75 @@ export const FIT_WEIGHTS = {
   interviewPractical: 0.05,
 } as const;
 
+/**
+ * Where a job is, weighed against the candidate's own profile (`preferences.preferredLocations`,
+ * `workAuthorization.authorizedCountries`), never against a city written here.
+ */
 export const LOCATION_MULTIPLIER = {
-  vancouver: 1.0,
-  canada: 0.92,
-  remote: 0.9,
-  us: 0.75,
+  /** In or near a place the profile lists in preferredLocations. */
+  preferred: 1.0,
+  /** Elsewhere in a country the candidate may work in without sponsorship. */
+  authorizedCountry: 0.92,
+  /** In Canada or the United States where the candidate would need sponsorship, or remote restricted to such a country. */
+  otherCountry: 0.75,
   international: 0.6,
   unclear: 0.7,
+} as const;
+
+/**
+ * A remote job, by `preferences.remote`. `last_resort` keeps a good remote job above
+ * `DISCOVER.applyThreshold` but ranks it under the same job in person; `no` lets only a very
+ * strong one stay in the queue. A posting that offers an office the candidate wants as well as
+ * remote is weighed by the office.
+ */
+export const REMOTE_MULTIPLIER = {
+  preferred: 1.0,
+  open: 0.9,
+  last_resort: 0.65,
+  no: 0.4,
+} as const;
+
+/** Pay read from a posting's text (`src/jobs/pay.ts`). */
+export const PAY = {
+  /** The currency of a pay floor that names none, as in `--min-pay 30/h`. */
+  defaultCurrency: "USD",
+  /** Paid hours in a year, to compare an hourly rate with a salary. */
+  hoursPerYear: 2080,
+  /** How far before an amount a word like "salary" or "pay" may be for the amount to count as pay. */
+  contextChars: 120,
+  /** Amounts outside these are not pay (a funding round, a stipend, a typo), by period. */
+  plausible: { hour: [7, 500], week: [280, 20000], month: [1000, 60000], year: [12000, 1000000] },
+  /**
+   * Which of BEA's parities stands for what living costs: "allItems" (everything a household buys)
+   * or "housing" (rent alone, where cities differ most). A floor is for a place at 100 and for
+   * remote work; an office must clear the floor times the index / 100.
+   */
+  costMeasure: "allItems" as "allItems" | "housing",
+  /**
+   * Names a posting uses that are not a metro's principal city, each sent to a metro by its BEA
+   * code (the `code` in knowledge/cost-of-living.json): a suburb, a region, or the usual reading
+   * of a city that is in two states. A name here applies only when a posting gives no state, or
+   * the state is one the metro covers, so "Cleveland, TN" still finds Cleveland, Tennessee.
+   */
+  costAliases: [
+    { metro: "47900", names: ["DMV", "DC", "Washington DC", "DC Metro", "Northern Virginia", "NoVA", "McLean", "Tysons", "Tysons Corner", "Reston", "Herndon", "Vienna", "Fairfax", "Falls Church", "Chantilly", "Ashburn", "Sterling", "Leesburg", "Arlington", "Bethesda", "Rockville", "Silver Spring", "Gaithersburg", "Germantown", "College Park", "Crystal City", "National Landing"] },
+    { metro: "35620", names: ["NYC", "New York City", "Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island", "Long Island City", "Hoboken", "White Plains"] },
+    { metro: "41860", names: ["SF", "Bay Area", "SF Bay Area", "San Francisco Bay Area", "South San Francisco", "Redwood City", "San Mateo", "Menlo Park", "Foster City", "Burlingame", "San Bruno", "Emeryville", "Berkeley"] },
+    { metro: "41940", names: ["Silicon Valley", "Palo Alto", "Mountain View", "Cupertino", "Milpitas", "Los Gatos", "Campbell"] },
+    { metro: "42660", names: ["Redmond", "Kirkland", "Bothell", "Renton", "Everett", "Issaquah"] },
+    { metro: "14460", names: ["Cambridge", "Somerville", "Waltham", "Burlington", "Woburn", "Quincy"] },
+    { metro: "31080", names: ["LA", "Santa Monica", "Culver City", "Playa Vista", "El Segundo", "Pasadena", "Burbank", "Irvine", "Costa Mesa", "Torrance"] },
+    { metro: "19100", names: ["DFW", "Plano", "Irving", "Frisco", "Richardson", "Addison", "Las Colinas"] },
+    { metro: "40060", names: ["Richmond", "Glen Allen", "Henrico", "Goochland", "West Creek"] },
+    { metro: "37980", names: ["Philly", "Conshohocken", "King of Prussia", "Malvern", "Radnor", "Bala Cynwyd"] },
+    { metro: "17410", names: ["Cleveland"] },
+    { metro: "18140", names: ["Columbus"] },
+    { metro: "38900", names: ["Portland"] },
+    { metro: "12060", names: ["Alpharetta"] },
+    { metro: "16980", names: ["Evanston", "Oak Brook", "Deerfield"] },
+    { metro: "33460", names: ["Twin Cities"] },
+    { metro: "12580", names: ["Towson", "Owings Mills"] },
+  ],
 } as const;
 
 /** Applied when the posting asks for a graduation date the candidate does not have. They can still apply, so it ranks lower instead of being dropped. */

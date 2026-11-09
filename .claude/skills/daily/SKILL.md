@@ -34,11 +34,13 @@ If `data/profile.json` is missing, do `/setup` first. Then ask, one
 question at a time:
 
 - How many applications a day? 15 is the default; 25 is the most.
-- Where may the jobs be? (Vancouver, the rest of Canada, remote, the
-  United States, elsewhere.)
+- Where may the jobs be? (The United States, remote, Canada, elsewhere.
+  Their profile's `preferences.countries` already leaves out the rest.)
 - Internships, new-grad roles, or both?
 - Is there a fit score below which you would rather not apply? Show the
   spread in their queue (`npx jev queue`) so the number means something.
+- A lowest pay? (`minPay`, as `30/h` or `60k`.) Say that most postings
+  state no pay and those are kept.
 - Any employers to leave out?
 - A resume written for each job, and a cover letter where a form has a
   box for one? This takes longer per job.

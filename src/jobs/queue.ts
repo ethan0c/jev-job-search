@@ -10,6 +10,7 @@ import { withStore, writeAtomic } from "../util/store.js";
 import { Answer } from "../jev/types.js";
 import type { FitResult } from "./rate.js";
 import { jobId, type Job } from "./normalize.js";
+import { hourly, payOf } from "./pay.js";
 
 /**
  * Where a job stands. The first seven are the plain outcomes. The rest are the stops on the way
@@ -187,6 +188,22 @@ export function sortEntries(entries: QueueEntry[]): QueueEntry[] {
     if (sb !== sa) return sb - sa;
     return (b.job.postedAt ?? "").localeCompare(a.job.postedAt ?? "");
   });
+}
+
+/**
+ * Highest stated pay first, as an hourly rate (the middle of the range), in one currency; ties and
+ * every job with no stated pay, or pay in another currency, follow in fit order. A posting that
+ * states no pay is not a low-paying one, so it is never put under one that pays little.
+ */
+export function sortByPay(entries: QueueEntry[], currency: string): QueueEntry[] {
+  const rate = new Map(entries.map((e) => {
+    const p = payOf(e.job);
+    return [e.job.id, p && p.currency === currency ? hourly((p.min + p.max) / 2, p.period) : null] as const;
+  }));
+  const fit = sortEntries(entries);
+  const known = fit.filter((e) => rate.get(e.job.id) != null);
+  const rest = fit.filter((e) => rate.get(e.job.id) == null);
+  return [...known.sort((a, b) => (rate.get(b.job.id) ?? 0) - (rate.get(a.job.id) ?? 0)), ...rest];
 }
 
 export function updateEntry(q: QueueFile, id: string, patch: Partial<QueueEntry>): QueueEntry {

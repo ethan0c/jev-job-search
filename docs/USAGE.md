@@ -98,6 +98,8 @@ or `--status queued` to try again.
 | [negarprh/Canadian-Tech-Internships-2027](https://github.com/negarprh/Canadian-Tech-Internships-2027) | Internships in Canada. |
 | [vanshb03/Summer2027-Internships](https://github.com/vanshb03/Summer2027-Internships) | Internships in the United States and Canada. |
 | [michelleokolie/canada-tech-internships-summer-2027](https://github.com/michelleokolie/canada-tech-internships-summer-2027) | Internships in Canada. |
+
+The two lists of Canadian internships are read only when `preferences.countries` is empty or includes Canada.
 | Company job boards | The tool asks Greenhouse, Lever and Ashby directly for the jobs of every company the lists name, and of 65 more companies. This finds jobs a day or two before the lists do. |
 | Your own list | Put a CSV file with a company column and a link column in `data/imports/`. |
 
@@ -124,6 +126,73 @@ JEV then reads each remaining job and answers 15 questions about it. They
 cover the level, the term, how well your skills and experience match, where
 the job is, and whether it asks for a graduation date that is not yours.
 The answers become one score, and the queue is ranked by that score.
+
+Where a job is counts by your own profile, not by a fixed list of cities.
+A job in a place you put in `preferences.preferredLocations` ranks first,
+then the rest of the countries you may work in, then places where you would
+need sponsorship. A remote job ranks by `preferences.remote`: `preferred`,
+`open`, `last_resort` (kept, but under the same job in an office) or `no`
+(only a very strong one stays in the queue). A posting that offers an office
+you listed and remote as well counts as the office. The reasons for a score
+say when the place changed it ("in a place you listed", "remote, ranked
+last as you asked").
+
+### Pay
+
+Where a posting states its pay, the tool reads the range from the posting's
+text ("$40 to $48 an hour", "CA$125K to CA$130K"). `npx jev queue` shows it
+next to the job. Most postings state none; those are never treated as
+paying less.
+
+```bash
+npx jev apply --count 20 --submit --min-pay 30/h   # leave out jobs that state less than $30 an hour
+npx jev apply --count 20 --submit --sort pay        # highest stated pay first
+npx jev queue --sort pay --min-pay 60k              # look before you run
+```
+
+A floor is in US dollars unless you name the currency (`CAD 35/h`). It
+judges by the top of a posting's range, and a job that states no pay, or
+states it in another currency, is kept.
+
+The floor is for remote work and for a place where living costs the
+national average. An office anywhere else is held to the floor times what
+living costs there, from the Bureau of Economic Analysis's Regional Price
+Parities for every US metro and state (`knowledge/cost-of-living.json`,
+where 100 is the US average). With a `40/h` floor, a New York job (112.6)
+needs about $45 an hour and a Cleveland one (93.9) about $37.60.
+
+A posting's place is found in this order: a suburb or region in
+`PAY.costAliases` (McLean, Tysons and "DMV" are the Washington metro;
+Plano is Dallas; Redmond is Seattle), then a metro's own city in the
+state the posting names, then that state's figure. "Cleveland, TN" stays
+in Tennessee; a city in two states with no state given, or a place abroad,
+counts as average. A posting with several offices is held to the cheapest.
+
+`PAY.costMeasure` is `allItems` (everything a household buys). Set it to
+`housing` to go by rent alone, where cities differ far more (San Jose 212,
+Cleveland 79): that reads a city as much dearer than it is for someone
+who also buys food and pays bills, so it is not the default.
+
+To refresh the table when BEA publishes a new year:
+
+```bash
+curl -O https://apps.bea.gov/regional/zip/MARPP.zip && unzip MARPP.zip -d marpp
+curl -O https://apps.bea.gov/regional/zip/SARPP.zip && unzip SARPP.zip -d sarpp
+npm run cost-data -- marpp/MARPP_MSA_*.csv sarpp/SARPP_STATE_*.csv
+```
+
+If your profile says `remote: "last_resort"` or `"no"`, a remote-only job
+must state pay that clears the floor; one that states none is left out. A
+job with an office is still kept when it states no pay. `--sort pay` puts the jobs that
+state pay first, highest first, and the rest after them by fit. That
+pushes a weaker fit that happens to state good pay ahead of a stronger one
+that states none, so the default stays by fit. The daily run takes a floor
+as `minPay` in `data/policy.json` and never sorts by pay.
+
+Set `preferences.countries` to the only countries you will work in (for
+example `["United States"]`), and a job with an office anywhere else, or
+remote limited to another country, is left out before it is rated. Plain
+"Remote" is kept and rated.
 
 The tool does not drop a job only because it asks for another graduation
 date. It ranks the job lower and leaves the choice to you.
@@ -242,6 +311,23 @@ npx jev log --open
 
 The column names never change, so a script can rely on them. For the same
 rows as JSON, run `npx jev log --json`.
+
+### Applications you sent without the tool
+
+The tool knows only what it sent. To keep it from applying again to jobs you
+applied to on your own, give it a CSV with a `Company` column, a `Job Link`
+column, and `Role` and `Applied On` if you have them:
+
+```bash
+npx jev import-applied ~/Downloads/applied-elsewhere.csv --dry   # see what it would record
+npx jev import-applied ~/Downloads/applied-elsewhere.csv
+```
+
+A row with a link is recorded as applied, and a job new to the queue is
+added so a later search keeps it as applied. A row with no link is matched
+by employer and exact title, and only when exactly one queued job fits;
+anything less certain is listed and left for you, since a wrong guess would
+hide a job you never applied to. Running it twice changes nothing.
 
 ### Jobs left for you
 

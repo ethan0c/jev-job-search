@@ -3,12 +3,13 @@
  * might need (speculative fan-out). Code turns the typed answers into a
  * composite score, hard skips, and human-readable reasons.
  */
-import { FIT_WEIGHTS, GRADUATION_MISMATCH_MULTIPLIER, LOCATION_MULTIPLIER, RECENCY_FLOOR, DISCOVER } from "../config.js";
+import { FIT_WEIGHTS, GRADUATION_MISMATCH_MULTIPLIER, RECENCY_FLOOR, DISCOVER } from "../config.js";
 import type { JevClient } from "../jev/client.js";
 import { choice, noul, score, scoreToUnit } from "../jev/questions.js";
 import type { Answer, ChoiceAnswer, NoulAnswer, Questions, ScoreAnswer } from "../jev/types.js";
 import { monthName, usStatus, type Profile } from "../profile/schema.js";
 import { locationTier, type LocationTier } from "./hardFilters.js";
+import { locationPrefs, locationWeight, NO_PREFS, type LocationPrefs } from "./location.js";
 import { ageDays, type Job } from "./normalize.js";
 import { hashOf, type KeyedCache } from "../util/cache.js";
 
@@ -68,8 +69,7 @@ export const FIT_QUESTIONS: Questions = {
   stack_match: score("How well does the candidate's technical stack match what the posting asks for?", LEVELS5),
   experience_match: score("How well does the candidate's experience level and background match what the posting asks for?", LEVELS5),
   location_tier: choice("Where is the role?", {
-    vancouver: "Vancouver or the Lower Mainland, BC",
-    canada: "Elsewhere in Canada",
+    canada: "In Canada",
     remote: "Remote, and not restricted to the United States",
     us: "In the United States, or remote restricted to the United States",
     international: "Outside Canada and the United States",
@@ -136,10 +136,11 @@ export async function rateJob(jev: JevClient, job: Job, profile: Profile, now = 
     answers = await jev.decide(buildFitState(job, profile, now), fitQuestions(profile), `rate:${job.company}:${job.title}`);
     cache?.set(key, answers);
   }
-  return scoreFromAnswers(job, answers, now, usStatus(profile));
+  return scoreFromAnswers(job, answers, now, usStatus(profile), locationPrefs(profile));
 }
 
-export function scoreFromAnswers(job: Job, answers: Record<string, Answer>, now = new Date(), us: { authorized: boolean; citizen: boolean } = { authorized: false, citizen: false }): FitResult {
+/** `where` is the candidate's own idea of a good place (`locationPrefs`); the score is weighed by it, never by a city written in code. */
+export function scoreFromAnswers(job: Job, answers: Record<string, Answer>, now = new Date(), us: { authorized: boolean; citizen: boolean } = { authorized: false, citizen: false }, where: LocationPrefs = NO_PREFS): FitResult {
   // A rating saved before a question existed simply lacks it; that reads as "no".
   const n = (k: string) => (answers[k] as NoulAnswer | undefined)?.noul ?? 0;
   const c = (k: string) => answers[k] as ChoiceAnswer;
@@ -175,10 +176,12 @@ export function scoreFromAnswers(job: Job, answers: Record<string, Answer>, now 
   const recency = age === null ? 0.85 : 1 - (1 - RECENCY_FLOOR) * Math.min(1, age / DISCOVER.maxAgeDays);
   // The candidate may still apply, so a graduation window that excludes them lowers the rank instead of dropping the job.
   const gradExcluded = n("graduation_excluded") > 0.7;
-  const scoreValue = Math.round(base * LOCATION_MULTIPLIER[tier] * recency * (gradExcluded ? GRADUATION_MISMATCH_MULTIPLIER : 1) * 1000) / 1000;
+  const place = locationWeight(job.locations, tier, where);
+  const scoreValue = Math.round(base * place.multiplier * recency * (gradExcluded ? GRADUATION_MISMATCH_MULTIPLIER : 1) * 1000) / 1000;
 
   if (c("work_auth").choice === "us_sponsors" && !us.authorized) reasons.push("US role, sponsorship offered");
   if (c("work_auth").choice === "unclear" && tier === "us" && !us.authorized) reasons.push("US role, sponsorship not stated");
+  if (place.reason) reasons.push(place.reason);
   if (gradExcluded) reasons.push("asks for a different graduation date");
   if (n("returning_student_required") > 0.6) reasons.push("may require returning to school after the term");
   if (n("interview_practical") > 0.6) reasons.push("practical interview process");

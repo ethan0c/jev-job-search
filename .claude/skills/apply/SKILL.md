@@ -43,6 +43,27 @@ through fill, resolve, further pages and submit on its own, and its result
 is printed the moment it is known. Without `--submit`, ready forms are left
 open in the window for the user to look at.
 
+The best N is by fit. Two choices change which jobs are taken, and both
+are the user's to ask for:
+
+- `--min-pay 30/h` (or `60k`, `CAD 35/h`) leaves out jobs whose stated pay
+  is under the floor, raised for a dear city. A job that states no pay is
+  kept, except a remote-only one when the profile takes remote as a last
+  resort.
+- `--sort pay` takes the highest stated pay first, then the rest by fit.
+  Say once that this puts weaker fits ahead of stronger ones that state no
+  pay. Show `npx jev queue --sort pay` first so they see the order.
+
+Neither ever brings back a job that was applied to.
+
+## Jobs the user applied to elsewhere
+
+If the user says they applied to some jobs on their own, ask for a CSV with
+`Company`, `Job Link`, and if they have them `Role` and `Applied On`, then
+run `npx jev import-applied <file> --dry`, show the result, and run it
+without `--dry` after a yes. Rows it lists as left out need a link; never
+mark one by hand to get around that.
+
 Each job ends in one of these ways. The queue and the record files are
 updated to match.
 

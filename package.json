@@ -23,7 +23,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check-types": "tsc --noEmit",
-    "audit": "npm audit --omit=dev"
+    "audit": "npm audit --omit=dev",
+    "cost-data": "tsx src/tools/costOfLiving.ts"
   },
   "dependencies": {
     "commander": "^15.0.0",

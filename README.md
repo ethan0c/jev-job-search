@@ -10,7 +10,7 @@ An open-source job application tool built on [Claude Code](https://claude.com/cl
 
 | | |
 |---|---|
-| **Who it is for** | Students and new graduates applying to software roles in Canada, the United States or remotely, who are comfortable opening a terminal once. It writes in English. |
+| **Who it is for** | Students and new graduates applying to software roles in the United States, Canada or remotely, who are comfortable opening a terminal once. Where you want to work, and where you may, come from your profile. It writes in English. |
 | **What you need** | A Mac with Google Chrome, [Node.js](https://nodejs.org) 22, and [Claude Code](https://claude.com/claude-code) with a Claude Pro or Max subscription. |
 | **What it costs** | Your Claude subscription, plus a few dollars of [OpenRouter](https://openrouter.ai/keys) credit for JEV: about 1 to 1.5 cents per 10 applications. Nothing else. |
 | **How to start** | Clone it, run `npm install`, open `claude` in the folder and type `/setup`. About 20 minutes, most of it your answers. It ends with one application filled and waiting for your yes. |
@@ -276,7 +276,7 @@ A robot check, a phone code, a passkey and single sign-on stop the job with the 
 
 ### Which jobs it keeps
 
-The filters and the scoring are in `src/config.ts`: early-career titles only, the countries you may work in, how much a Vancouver, Canadian, remote or US posting is worth to you, and how old a posting may be (`/discover --max-age 30`). A posting that prefers another graduation date is ranked lower, not dropped: whether to apply is your decision.
+The filters and the scoring are in `src/config.ts`: early-career titles only, the countries you may work in, how much a posting in a city you listed, elsewhere in your country, remote or abroad is worth to you, and how old a posting may be (`/discover --max-age 30`). A posting that prefers another graduation date is ranked lower, not dropped: whether to apply is your decision.
 
 ### Custom resume and cover letter templates
 
