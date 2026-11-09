@@ -14,8 +14,8 @@ const job = (over: Partial<Job> = {}): Job => ({
 
 describe("locationTier", () => {
   it.each([
-    [["Vancouver, BC, Canada"], "vancouver"],
-    [["Burnaby, BC"], "vancouver"],
+    [["Vancouver, BC, Canada"], "canada"],
+    [["Burnaby, BC"], "canada"],
     [["Toronto, ON"], "canada"],
     [["Montreal, QC, Canada"], "canada"],
     [["Remote"], "remote"],

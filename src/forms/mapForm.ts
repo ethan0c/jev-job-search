@@ -27,7 +27,7 @@ const NONE = "__none__";
 
 export function buildFormState(profile: Profile, job: Job, dump: FieldsDump, fields: DumpedField[]): Record<string, unknown> {
   const tier = locationTier(job.locations);
-  const country = tier === "vancouver" || tier === "canada" ? "Canada" : tier === "us" ? "United States" : tier === "remote" ? "remote (treat as the company's country)" : "unknown";
+  const country = tier === "canada" ? "Canada" : tier === "us" ? "United States" : tier === "remote" ? "remote (treat as the company's country)" : "unknown";
   return {
     page: { url: dump.url, title: dump.title, context: dump.context },
     job: { company: job.company, title: job.title, locations: job.locations, country },
@@ -135,7 +135,7 @@ export function countryOf(label: string, job: Job): string | null {
   if (/\bcanad/i.test(label)) return "Canada";
   if (/united states|\bu\.?s\.?a?\.?\b|\bamerica\b/i.test(label)) return "United States";
   const tier = locationTier(job.locations);
-  if (tier === "vancouver" || tier === "canada") return "Canada";
+  if (tier === "canada") return "Canada";
   if (tier === "us") return "United States";
   // A posting that lists a city and "Remote" is read as remote; the city still says which country.
   return countryOfLocations(job.locations);

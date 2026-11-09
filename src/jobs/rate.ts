@@ -69,8 +69,7 @@ export const FIT_QUESTIONS: Questions = {
   stack_match: score("How well does the candidate's technical stack match what the posting asks for?", LEVELS5),
   experience_match: score("How well does the candidate's experience level and background match what the posting asks for?", LEVELS5),
   location_tier: choice("Where is the role?", {
-    vancouver: "Vancouver or the Lower Mainland, BC",
-    canada: "Elsewhere in Canada",
+    canada: "In Canada",
     remote: "Remote, and not restricted to the United States",
     us: "In the United States, or remote restricted to the United States",
     international: "Outside Canada and the United States",

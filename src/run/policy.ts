@@ -21,8 +21,8 @@ export const Policy = z.object({
   version: z.literal(1).default(1),
   /** Applications a day. */
   target: z.number().int().min(1).max(DAILY.maxTarget).default(DAILY.target),
-  /** Where a job may be: vancouver, canada, remote, us, international, unclear. Empty means anywhere the search kept. */
-  where: z.array(z.enum(["vancouver", "canada", "remote", "us", "international", "unclear"])).default([]),
+  /** Where a job may be: us, remote, canada, international, unclear. Empty means anywhere the search kept. An older file's "vancouver" reads as canada. */
+  where: z.preprocess((v) => (Array.isArray(v) ? v.map((x) => (x === "vancouver" ? "canada" : x)) : v), z.array(z.enum(["us", "remote", "canada", "international", "unclear"])).default([])),
   /** Which kinds of job: internship, new_grad. Empty means both. */
   levels: z.array(z.enum(["internship", "new_grad"])).default([]),
   /**
@@ -62,7 +62,8 @@ export function policyRefuses(e: QueueEntry, p: Policy, o: { remoteNeedsPay?: bo
   const floor = p.minPay.trim() ? floorOrNull(p.minPay) : null;
   const underFloor = floor ? floorRefuses(e.job, floor, o) : null;
   if (underFloor) return underFloor;
-  const tier = e.fit?.locationTier;
+  // A rating saved before the tiers were made neutral may still say "vancouver".
+  const tier = e.fit?.locationTier === "vancouver" ? "canada" : e.fit?.locationTier;
   if (p.where.length && !(tier && (p.where as string[]).includes(tier))) return `it is not in ${p.where.join(", ")}`;
   const level = (e.fit?.answers.level as { choice?: string } | undefined)?.choice;
   if (p.levels.length && !(level && (p.levels as string[]).includes(level))) return `it is not ${p.levels.join(" or ")}`;

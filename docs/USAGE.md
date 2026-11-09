@@ -98,6 +98,8 @@ or `--status queued` to try again.
 | [negarprh/Canadian-Tech-Internships-2027](https://github.com/negarprh/Canadian-Tech-Internships-2027) | Internships in Canada. |
 | [vanshb03/Summer2027-Internships](https://github.com/vanshb03/Summer2027-Internships) | Internships in the United States and Canada. |
 | [michelleokolie/canada-tech-internships-summer-2027](https://github.com/michelleokolie/canada-tech-internships-summer-2027) | Internships in Canada. |
+
+The two lists of Canadian internships are read only when `preferences.countries` is empty or includes Canada.
 | Company job boards | The tool asks Greenhouse, Lever and Ashby directly for the jobs of every company the lists name, and of 65 more companies. This finds jobs a day or two before the lists do. |
 | Your own list | Put a CSV file with a company column and a link column in `data/imports/`. |
 

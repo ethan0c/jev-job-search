@@ -101,6 +101,8 @@ describe("choosing jobs by pay", () => {
     expect(policyRefuses({ ...silent, fit: { ...silent.fit!, score: 0.9 } }, p)).toBeNull();
     expect(Policy.safeParse({ minPay: "lots" }).success).toBe(false);
     expect(Policy.parse({}).minPay).toBe("");
+    // A policy written before the tiers were made neutral still loads.
+    expect(Policy.parse({ where: ["vancouver", "us"] }).where).toEqual(["canada", "us"]);
   });
 });
 

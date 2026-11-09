@@ -57,7 +57,6 @@ function inPreferred(onsite: string[], country: Country | null, preferred: strin
 
 /** What JEV said about a posting whose locations the code could not read, as a place the rules below understand. */
 function fromJevTier(tier: LocationTier): { onsite: string[]; remote: boolean } {
-  if (tier === "vancouver") return { onsite: ["Vancouver, BC, Canada"], remote: false };
   if (tier === "canada") return { onsite: ["Canada"], remote: false };
   if (tier === "us") return { onsite: ["United States"], remote: false };
   if (tier === "remote") return { onsite: [], remote: true };

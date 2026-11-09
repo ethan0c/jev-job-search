@@ -34,7 +34,7 @@ cp data/policy.example.json data/policy.json
 | Field | What it means | Left empty |
 |---|---|---|
 | `target` | Applications a day. At most 25 | 15 |
-| `where` | Where a job may be: `vancouver`, `canada`, `remote`, `us`, `international`, `unclear` | anywhere your search kept |
+| `where` | Where a job may be: `us`, `remote`, `canada`, `international`, `unclear` | anywhere your search kept |
 | `levels` | `internship`, `new_grad` | both |
 | `minScore` | The lowest fit score a job may have, 0 to 1 | the search's own threshold |
 | `minPay` | The lowest stated pay, as `30/h`, `60k` or `CAD 35/h`, raised where living costs more. A job that states no pay is kept, unless it is remote only and your profile takes remote as a last resort | no floor |

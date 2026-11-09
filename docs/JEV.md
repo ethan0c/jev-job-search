@@ -133,7 +133,7 @@ State: `{ job: { company, title, locations, posted_days_ago, terms_from_source, 
 | `returning_student_required` | noul | Not a skip; recorded in the notes because the candidate may extend a term. |
 | `stack_match` | score 0..4 | Score component. |
 | `experience_match` | score 0..4 | Score component. |
-| `location_tier` | choice: vancouver, canada, remote, us, international, unclear | Used only when code cannot classify the location strings. |
+| `location_tier` | choice: canada, remote, us, international, unclear | Used only when code cannot classify the location strings. |
 | `interview_practical` | noul | Small bonus; the user prefers practical loops. |
 | `callback_likelihood` | score 0..4 | The heaviest component: the composite judgement a recruiter would make. |
 | `needs_account` | noul | Trusted only when the ATS is unknown to code and the value is above 0.9. |

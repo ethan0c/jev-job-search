@@ -49,6 +49,8 @@ export type DiscoverOptions = {
   gradYear?: number;
   /** Consider postings up to this many days old, for one search. The default is DISCOVER.maxAgeDays. */
   maxAgeDays?: number;
+  /** The profile's `preferences.countries`: lists of jobs only in other countries are not read. */
+  countries?: string[];
 };
 
 export type DiscoverSummary = {
@@ -74,7 +76,7 @@ export async function collectJobs(opts: DiscoverOptions = {}): Promise<Job[]> {
       log(`[sources] simplify failed: ${String(e)}`);
       return [] as Job[];
     }),
-    fetchReadmeSources(),
+    fetchReadmeSources(opts.countries ?? []),
   ]);
   log(`[sources] simplify ${simplify.length}, github lists ${readmes.length}`);
   jobs.push(...simplify, ...readmes);
@@ -173,7 +175,7 @@ export async function discover(profile: Profile, jev: JevClient, opts: DiscoverO
   const prevById = new Map(previous.entries.map((e) => [e.job.id, e]));
 
   const gradYear = profile.education[0]?.gradYear;
-  const all = await collectJobs({ ...opts, ...(gradYear !== undefined ? { gradYear } : {}) });
+  const all = await collectJobs({ ...opts, countries: profile.preferences.countries, ...(gradYear !== undefined ? { gradYear } : {}) });
   const learned = learnedWalledHosts();
   const us = usStatus(profile);
   const collected = all.length;

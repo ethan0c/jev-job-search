@@ -35,6 +35,9 @@ changed for a person using the tool and what changed for a contributor.
   `authorizedCountries`, `remote`) instead of a fixed list that favoured one
   city. For a candidate outside Canada, jobs in their own country no longer
   rank under remote ones.
+- The location tiers are neutral: `vancouver` is gone, and a policy that
+  still names it reads it as `canada`. The lists of Canadian internships are
+  read only when `preferences.countries` is empty or includes Canada.
 - A form that asks for a remote preference is told what the profile says for
   `no` and `last_resort`, where it used to say "open to remote" for both.
 - A run takes at most three roles from one employer, never two in a row, and
