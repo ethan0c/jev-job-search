@@ -6,6 +6,7 @@
  */
 import { PAY } from "../config.js";
 import { countryOfLocations } from "./hardFilters.js";
+import { costOfPlace, loadCostData, type CostData } from "./costOfLiving.js";
 
 export type PayPeriod = "hour" | "week" | "month" | "year";
 export type Pay = { min: number; max: number; currency: string; period: PayPeriod };
@@ -120,18 +121,17 @@ export function formatPay(p: Pay | null): string {
   return `${range} a${p.period === "hour" ? "n" : ""} ${p.period}`;
 }
 
-const COST = PAY.costOfLiving.map((c) => ({ ...c, re: new RegExp(`\\b(?:${c.match})\\b`, "i") }));
-
 /**
- * What living costs where a job's office is (`PAY.costOfLiving`, U.S. = 100). With several offices
- * the cheapest counts, since the person could choose it. Remote work, and a place not listed, is 100.
+ * What living costs where a job's office is (`costOfPlace`, U.S. = 100). With several offices the
+ * cheapest counts, since the person could choose it. Remote work, and a place the table cannot
+ * find, is 100.
  */
-export function costOfLiving(locations: string[]): { index: number; place: string | null } {
-  const onsite = locations.filter((l) => l.trim() && !/remote/i.test(l));
-  if (!onsite.length) return { index: 100, place: null };
+export function costOfLiving(locations: string[], data: CostData | null = loadCostData()): { index: number; place: string | null } {
+  const offices = locations.flatMap((l) => l.split(/\s*[;|]\s*|\s+or\s+/i)).filter((l) => l.trim() && !/remote|anywhere/i.test(l));
+  if (!offices.length) return { index: 100, place: null };
   let best: { index: number; place: string | null } | null = null;
-  for (const l of onsite) {
-    const hit = COST.find((c) => c.re.test(l));
+  for (const l of offices) {
+    const hit = costOfPlace(l, data);
     const here = hit ? { index: hit.index, place: hit.place } : { index: 100, place: null };
     if (!best || here.index < best.index) best = here;
   }

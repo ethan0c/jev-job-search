@@ -192,14 +192,16 @@ describe("a floor that knows what living costs", () => {
   it("raises the floor where living costs more, and leaves remote work at the floor", () => {
     expect(costOfLiving(["New York, NY"]).index).toBeGreaterThan(100);
     expect(costOfLiving(["Remote"]).index).toBe(100);
-    expect(costOfLiving(["Harrisburg, PA"]).index).toBe(100);
+    expect(costOfLiving(["Harrisburg, PA"]).index).toBeLessThan(100);
+    expect(costOfLiving(["Lisbon, Portugal"]).index).toBe(100);
     expect(floorRefuses(job(["Remote"], "Pay: $40 per hour"), floor)).toBeNull();
     expect(floorRefuses(job(["New York, NY"], "Pay: $42 per hour"), floor)).toMatch(/in New York/);
     expect(floorRefuses(job(["New York, NY"], "Pay: $46 per hour"), floor)).toBeNull();
     expect(floorRefuses(job(["Redmond, WA"], "Pay: $44 per hour"), floor)).toMatch(/in Seattle/);
   });
   it("takes the cheapest office when a posting lists several", () => {
-    expect(costOfLiving(["New York, NY", "Austin, TX"]).place).toBe("Austin");
+    expect(costOfLiving(["New York, NY", "Austin, TX"]).place).toMatch(/^Austin/);
+    expect(costOfLiving(["New York, NY; Austin, TX"]).place).toMatch(/^Austin/);
     expect(floorRefuses(job(["New York, NY", "Austin, TX"], "Pay: $40 per hour"), floor)).toBeNull();
   });
   it("asks a remote-only job to prove its pay when remote is a last resort, and no one else", () => {

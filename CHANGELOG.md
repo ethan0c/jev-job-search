@@ -23,8 +23,10 @@ changed for a person using the tool and what changed for a contributor.
   rank under the same job in an office. With a pay floor, a remote-only job
   must then state pay that clears it.
 - A pay floor rises with what living costs at the job's office, from BEA's
-  Regional Price Parities (`PAY.costOfLiving`); remote work is held to the
-  floor itself.
+  Regional Price Parities for every US metro and state
+  (`knowledge/cost-of-living.json`, rebuilt with `npm run cost-data`), with
+  suburbs and regions such as McLean, Plano and "DMV" mapped in
+  `PAY.costAliases`. Remote work is held to the floor itself.
 - `preferences.countries` leaves out jobs in any other country before they
   are rated.
 

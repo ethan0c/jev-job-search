@@ -153,12 +153,31 @@ judges by the top of a posting's range, and a job that states no pay, or
 states it in another currency, is kept.
 
 The floor is for remote work and for a place where living costs the
-national average. An office somewhere dearer has to clear more: the floor
-times the metro's cost of living (`PAY.costOfLiving` in `src/config.ts`,
-BEA's Regional Price Parities, where 100 is the US average). With a
-`40/h` floor, a New York job (112.6) needs about $45 an hour. A posting
-with several offices is held to the cheapest, and a city not in the table
-counts as average. Add a metro from BEA's table, never from a guess.
+national average. An office anywhere else is held to the floor times what
+living costs there, from the Bureau of Economic Analysis's Regional Price
+Parities for every US metro and state (`knowledge/cost-of-living.json`,
+where 100 is the US average). With a `40/h` floor, a New York job (112.6)
+needs about $45 an hour and a Cleveland one (93.9) about $37.60.
+
+A posting's place is found in this order: a suburb or region in
+`PAY.costAliases` (McLean, Tysons and "DMV" are the Washington metro;
+Plano is Dallas; Redmond is Seattle), then a metro's own city in the
+state the posting names, then that state's figure. "Cleveland, TN" stays
+in Tennessee; a city in two states with no state given, or a place abroad,
+counts as average. A posting with several offices is held to the cheapest.
+
+`PAY.costMeasure` is `allItems` (everything a household buys). Set it to
+`housing` to go by rent alone, where cities differ far more (San Jose 212,
+Cleveland 79): that reads a city as much dearer than it is for someone
+who also buys food and pays bills, so it is not the default.
+
+To refresh the table when BEA publishes a new year:
+
+```bash
+curl -O https://apps.bea.gov/regional/zip/MARPP.zip && unzip MARPP.zip -d marpp
+curl -O https://apps.bea.gov/regional/zip/SARPP.zip && unzip SARPP.zip -d sarpp
+npm run cost-data -- marpp/MARPP_MSA_*.csv sarpp/SARPP_STATE_*.csv
+```
 
 If your profile says `remote: "last_resort"` or `"no"`, a remote-only job
 must state pay that clears the floor; one that states none is left out. A

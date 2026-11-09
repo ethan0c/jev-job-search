@@ -29,6 +29,8 @@ export const PATHS = {
   cache: path.join(ROOT, "data", "cache"),
   /** What every user's runs have taught the tool about sites. Shipped with the repository. */
   knowledgeShipped: path.join(ROOT, "knowledge", "sites.json"),
+  /** BEA's Regional Price Parities for every metro and state, built by `npm run cost-data`. Tracked: it holds no one's data. */
+  costOfLiving: path.join(ROOT, "knowledge", "cost-of-living.json"),
   /** What this machine's runs have learned since. Merged with the shipped notes on reading. */
   knowledgeLocal: path.join(ROOT, "data", "knowledge.json"),
   /** Left by earlier versions: sites found behind a sign-in. Read once more and folded into the notes above. */
@@ -200,25 +202,35 @@ export const PAY = {
   /** Amounts outside these are not pay (a funding round, a stipend, a typo), by period. */
   plausible: { hour: [7, 500], week: [280, 20000], month: [1000, 60000], year: [12000, 1000000] },
   /**
-   * How much living costs in a metro, as BEA Regional Price Parities, all items, 2023 (U.S. = 100).
-   * A pay floor is for a place at 100 and for remote work; a job in an office here must clear the
-   * floor times index / 100. A place not listed counts as 100: no figure is guessed. Only values
-   * read from BEA's series (via FRED) are here; add a metro from the same table, not from memory.
-   * `match` is matched as whole words against a posting's locations.
+   * Which of BEA's parities stands for what living costs: "allItems" (everything a household buys)
+   * or "housing" (rent alone, where cities differ most). A floor is for a place at 100 and for
+   * remote work; an office must clear the floor times the index / 100.
    */
-  costOfLiving: [
-    { place: "San Francisco", match: "san francisco|sf|oakland|berkeley|south san francisco|redwood city|san mateo", index: 117.6 },
-    { place: "San Jose", match: "san jose|sunnyvale|santa clara|mountain view|palo alto|cupertino|menlo park", index: 113.1 },
-    { place: "Seattle", match: "seattle|bellevue|redmond|kirkland|tacoma", index: 112.7 },
-    { place: "New York", match: "new york|nyc|manhattan|brooklyn|jersey city|newark", index: 112.6 },
-    { place: "Boston", match: "boston|cambridge, ma|somerville", index: 110.4 },
-    { place: "Sacramento", match: "sacramento|roseville", index: 109.1 },
-    { place: "Denver", match: "denver|aurora, co|lakewood, co", index: 105.8 },
-    { place: "Orlando", match: "orlando", index: 101.6 },
-    { place: "Raleigh", match: "raleigh", index: 98.4 },
-    { place: "Austin", match: "austin|round rock", index: 98.3 },
-    { place: "St. Louis", match: "st\\.? louis", index: 95.0 },
-    { place: "Columbus", match: "columbus, oh|columbus, ohio", index: 94.6 },
+  costMeasure: "allItems" as "allItems" | "housing",
+  /**
+   * Names a posting uses that are not a metro's principal city, each sent to a metro by its BEA
+   * code (the `code` in knowledge/cost-of-living.json): a suburb, a region, or the usual reading
+   * of a city that is in two states. A name here applies only when a posting gives no state, or
+   * the state is one the metro covers, so "Cleveland, TN" still finds Cleveland, Tennessee.
+   */
+  costAliases: [
+    { metro: "47900", names: ["DMV", "DC", "Washington DC", "DC Metro", "Northern Virginia", "NoVA", "McLean", "Tysons", "Tysons Corner", "Reston", "Herndon", "Vienna", "Fairfax", "Falls Church", "Chantilly", "Ashburn", "Sterling", "Leesburg", "Arlington", "Bethesda", "Rockville", "Silver Spring", "Gaithersburg", "Germantown", "College Park", "Crystal City", "National Landing"] },
+    { metro: "35620", names: ["NYC", "New York City", "Manhattan", "Brooklyn", "Queens", "Bronx", "Staten Island", "Long Island City", "Hoboken", "White Plains"] },
+    { metro: "41860", names: ["SF", "Bay Area", "SF Bay Area", "San Francisco Bay Area", "South San Francisco", "Redwood City", "San Mateo", "Menlo Park", "Foster City", "Burlingame", "San Bruno", "Emeryville", "Berkeley"] },
+    { metro: "41940", names: ["Silicon Valley", "Palo Alto", "Mountain View", "Cupertino", "Milpitas", "Los Gatos", "Campbell"] },
+    { metro: "42660", names: ["Redmond", "Kirkland", "Bothell", "Renton", "Everett", "Issaquah"] },
+    { metro: "14460", names: ["Cambridge", "Somerville", "Waltham", "Burlington", "Woburn", "Quincy"] },
+    { metro: "31080", names: ["LA", "Santa Monica", "Culver City", "Playa Vista", "El Segundo", "Pasadena", "Burbank", "Irvine", "Costa Mesa", "Torrance"] },
+    { metro: "19100", names: ["DFW", "Plano", "Irving", "Frisco", "Richardson", "Addison", "Las Colinas"] },
+    { metro: "40060", names: ["Richmond", "Glen Allen", "Henrico", "Goochland", "West Creek"] },
+    { metro: "37980", names: ["Philly", "Conshohocken", "King of Prussia", "Malvern", "Radnor", "Bala Cynwyd"] },
+    { metro: "17410", names: ["Cleveland"] },
+    { metro: "18140", names: ["Columbus"] },
+    { metro: "38900", names: ["Portland"] },
+    { metro: "12060", names: ["Alpharetta"] },
+    { metro: "16980", names: ["Evanston", "Oak Brook", "Deerfield"] },
+    { metro: "33460", names: ["Twin Cities"] },
+    { metro: "12580", names: ["Towson", "Owings Mills"] },
   ],
 } as const;
 
