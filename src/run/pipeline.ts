@@ -5,7 +5,7 @@
  * Fills run side by side and paced per site, the writer takes a few forms at
  * a time, and submissions go one at a time with a pause per site.
  */
-import { ACCOUNTS, RUN } from "../config.js";
+import { ACCOUNTS, PAY, RUN } from "../config.js";
 import { accountGate, adapterFor, capabilityFor } from "../accounts/capability.js";
 import { signedInNow } from "../accounts/gate.js";
 import { ensureBrowser, sleep } from "../browser/cdp.js";
@@ -17,7 +17,8 @@ import { assist, notify, waitingWords } from "./assist.js";
 import { logNotes } from "../answers/resolve.js";
 import { JevClient } from "../jev/client.js";
 import { applyUrlFor, hostIs, type Job } from "../jobs/normalize.js";
-import { loadQueue, mutateQueue, RUN_OWNED, sortEntries, updateEntry, type QueueEntry } from "../jobs/queue.js";
+import { loadQueue, mutateQueue, RUN_OWNED, sortByPay, sortEntries, updateEntry, type QueueEntry } from "../jobs/queue.js";
+import { meetsFloor, payOf, type PayFloor } from "../jobs/pay.js";
 import { withStore } from "../util/store.js";
 import { rememberWalledHost } from "../jobs/walled.js";
 import { learn, loadKnowledge } from "../knowledge/sites.js";
@@ -47,15 +48,23 @@ const hostOf = (url: string) => {
  * with no confirmation seen, is refused: `resubmit` lets a sent one through on purpose, and nothing
  * lets an unconfirmed one through until it is settled.
  */
-export function takeJobs(ids: string[], o: { count: number; dry: boolean; resubmit?: boolean }): QueueEntry[] {
-  if (o.dry) {
-    const { picked, refused } = pickJobs(loadQueue().entries, ids, o, accountGate());
+/** How a run without ids chooses from the queue: by fit (the default) or by stated pay, and with a floor on stated pay. */
+export type PickOptions = { count: number; dry: boolean; resubmit?: boolean; minPay?: PayFloor; sort?: "fit" | "pay" };
+
+export function takeJobs(ids: string[], o: PickOptions): QueueEntry[] {
+  const say = ({ refused, underFloor }: ReturnType<typeof pickJobs>) => {
     for (const r of refused) console.log(`${r.id}  not taken: ${r.why}`);
-    return picked;
+    if (underFloor) console.log(`${underFloor} queued job(s) left for another run: their stated pay is under ${o.minPay?.text}`);
+  };
+  if (o.dry) {
+    const got = pickJobs(loadQueue().entries, ids, o, accountGate());
+    say(got);
+    return got.picked;
   }
   return mutateQueue((q) => {
-    const { picked, refused } = pickJobs(q.entries, ids, o, accountGate());
-    for (const r of refused) console.log(`${r.id}  not taken: ${r.why}`);
+    const got = pickJobs(q.entries, ids, o, accountGate());
+    const { picked } = got;
+    say(got);
     for (const e of picked) updateEntry(q, e.job.id, { status: "in_progress", statusReason: null, waitingFor: null, attempts: e.attempts + 1 });
     return picked;
   });
@@ -66,12 +75,20 @@ export function takeJobs(ids: string[], o: { count: number; dry: boolean; resubm
  * rehearsal sends nothing, so it may take any. `gate` speaks for the boards that want an account:
  * a job there is taken only when the tool may sign in today, and never more new accounts than the day allows.
  */
-export function pickJobs(entries: QueueEntry[], ids: string[], o: { count: number; dry: boolean; resubmit?: boolean }, gate: (url: string) => string | null = () => null): { picked: QueueEntry[]; refused: { id: string; why: string }[] } {
+export function pickJobs(entries: QueueEntry[], ids: string[], o: PickOptions, gate: (url: string) => string | null = () => null): { picked: QueueEntry[]; refused: { id: string; why: string }[]; underFloor: number } {
   if (!ids.length) {
     const picked: QueueEntry[] = [];
     const perEmployer = new Map<string, number>();
-    for (const e of sortEntries(entries.filter((x) => x.status === "queued"))) {
+    const queued = entries.filter((x) => x.status === "queued");
+    const ordered = o.sort === "pay" ? sortByPay(queued, o.minPay?.currency ?? PAY.defaultCurrency) : sortEntries(queued);
+    let underFloor = 0;
+    for (const e of ordered) {
       if (picked.length >= o.count) break;
+      // A floor leaves out only a job whose stated pay is under it; a job that states none is kept.
+      if (o.minPay && meetsFloor(payOf(e.job), o.minPay) === false) {
+        underFloor++;
+        continue;
+      }
       // A job that must wait for another day stays in the queue, untouched.
       if (gate(e.job.url)) continue;
       // Several roles at one employer: a run takes a few and leaves the rest for another day.
@@ -80,7 +97,7 @@ export function pickJobs(entries: QueueEntry[], ids: string[], o: { count: numbe
       perEmployer.set(key, (perEmployer.get(key) ?? 0) + 1);
       picked.push(e);
     }
-    return { picked: interleaveEmployers(picked), refused: [] };
+    return { picked: interleaveEmployers(picked), refused: [], underFloor };
   }
   const picked: QueueEntry[] = [];
   const refused: { id: string; why: string }[] = [];
@@ -94,7 +111,7 @@ export function pickJobs(entries: QueueEntry[], ids: string[], o: { count: numbe
     else if (e.status === "applied" && !o.resubmit) refused.push({ id, why: `already applied on ${e.appliedAt?.slice(0, 10) ?? "an earlier day"}. To send it again on purpose, add --resubmit` });
     else picked.push(e);
   }
-  return { picked, refused };
+  return { picked, refused, underFloor: 0 };
 }
 
 /** One employer under its spellings: "DoorDash", "Doordash Canada" and "DoorDash, Inc." pace together. */

@@ -18,7 +18,7 @@ import { acquireRun, currentRun } from "./util/store.js";
 import { waitingWords } from "./run/assist.js";
 import { withStore } from "./util/store.js";
 import { checkJob } from "./browser/submit.js";
-import { ACCOUNTS, childEnv, DAILY, GMAIL, INBOX, loadEnv, DISCOVER, PATHS, REPORT, RUN } from "./config.js";
+import { ACCOUNTS, childEnv, DAILY, GMAIL, INBOX, loadEnv, DISCOVER, PATHS, PAY, REPORT, RUN } from "./config.js";
 import { accountGate } from "./accounts/capability.js";
 import { clearStop, dailyRun, formatDaily, localDay, requestStop, saveDaily, stopRequested, type Outcome } from "./run/daily.js";
 import { loadPolicy } from "./run/policy.js";
@@ -40,7 +40,9 @@ import { discover } from "./discover.js";
 import { formatChecks, isReadyToRun, nextStep, runChecks } from "./doctor.js";
 import { JevClient } from "./jev/client.js";
 import { loadKnowledge, shareKnowledge } from "./knowledge/sites.js";
-import { loadQueue, mutateQueue, sortEntries, updateEntry, QueueStatus, type QueueEntry } from "./jobs/queue.js";
+import { entryFor, loadQueue, mutateQueue, sortByPay, sortEntries, updateEntry, QueueStatus, type QueueEntry } from "./jobs/queue.js";
+import { meetsFloor, parsePayFloor, payOf, type PayFloor } from "./jobs/pay.js";
+import { parseAppliedCsv, planImport, type AppliedRow, type ImportStep } from "./jobs/importApplied.js";
 import { formatCost, loadCost } from "./log/cost.js";
 import { appliedRecords, loadRows, manualRecords, saveRows, toRecord, upsertEntry } from "./log/csv.js";
 import { loadProfile } from "./profile/schema.js";
@@ -90,17 +92,28 @@ program
   .description("List the ranked jobs")
   .option("--all", "include skipped and applied entries")
   .option("--limit <n>", "rows to show", int, 50)
+  .option("--sort <order>", "fit (the default) or pay, highest stated pay first, then the jobs that state none, by fit")
+  .option("--min-pay <floor>", "leave out jobs whose stated pay is under this, as in 30/h, 60k or CAD 35/h. A job that states no pay is kept")
   .option("--json")
-  .action((o: { all?: boolean; limit: number; json?: boolean }) => {
+  .action((o: { all?: boolean; limit: number; json?: boolean; sort?: string; minPay?: string }) => {
     const q = loadQueue();
-    const entries = sortEntries(o.all ? q.entries : q.entries.filter((e) => e.status === "queued")).slice(0, o.limit);
+    const { sort, minPay } = choosing(o);
+    const shown = (o.all ? q.entries : q.entries.filter((e) => e.status === "queued")).filter((e) => !minPay || meetsFloor(payOf(e.job), minPay) !== false);
+    const entries = (sort === "pay" ? sortByPay(shown, minPay?.currency ?? PAY.defaultCurrency) : sortEntries(shown)).slice(0, o.limit);
     if (o.json) console.log(JSON.stringify(entries.map(brief), null, 2));
     else printTable(entries);
   });
 
 // ------------------------------------------------------------------- apply
 
-type ApplyOptions = { count: number; dry?: boolean; submit?: boolean; fresh?: boolean; json?: boolean; tailor?: boolean; cover?: boolean; plain?: boolean; resubmit?: boolean };
+type ApplyOptions = { count: number; dry?: boolean; submit?: boolean; fresh?: boolean; json?: boolean; tailor?: boolean; cover?: boolean; plain?: boolean; resubmit?: boolean; sort?: string; minPay?: string };
+
+/** --sort and --min-pay, read and checked before a browser is touched. */
+function choosing(o: { sort?: string; minPay?: string }): { sort: "fit" | "pay"; minPay?: PayFloor } {
+  const sort = o.sort ?? "fit";
+  if (sort !== "fit" && sort !== "pay") throw new Error(`--sort takes fit or pay, not "${sort}"`);
+  return { sort, ...(o.minPay ? { minPay: parsePayFloor(o.minPay) } : {}) };
+}
 
 /** Takes the browser for a command that drives it, tidies what an interrupted run left, and gives the lock back when the work ends. */
 async function inRun<T>(command: string, work: () => Promise<T>): Promise<T> {
@@ -160,14 +173,17 @@ program
   .option("--cover", "also write a cover letter for a form that has a box for one, as a file or as text")
   .option("--plain", "the profile's own resume and no cover letter, whatever the profile says")
   .option("--resubmit", "let a job you already applied to be filled and sent again. Never needed in normal use")
+  .option("--sort <order>", "with no ids: fit (the default) or pay, highest stated pay first, then the jobs that state none, by fit")
+  .option("--min-pay <floor>", "with no ids: leave out jobs whose stated pay is under this, as in 30/h, 60k or CAD 35/h. A job that states no pay is kept")
   .option("--json")
   .action(async (given: string[], o: ApplyOptions) => {
     documentsFromOptions(o);
+    const choice = choosing(o);
     const began = new Date().toISOString();
     await inRun(`apply${o.submit ? " --submit" : ""}${o.dry ? " --dry" : ""}`, async () => {
       const ids = await idsFromLinks(given);
       if (given.length && !ids.length) return;
-      const entries = takeJobs(ids, { count: o.count, dry: !!o.dry, resubmit: !!o.resubmit });
+      const entries = takeJobs(ids, { count: o.count, dry: !!o.dry, resubmit: !!o.resubmit, ...choice });
       if (given.length && !entries.length) return;
       const { reports, sent } = await pipeline(entries, { submit: !!o.submit, dry: !!o.dry, fresh: !!o.fresh, quiet: !!o.json, waitAtSignIn: given.length > 0 });
       if (o.json) console.log(JSON.stringify(reports, null, 2));
@@ -267,10 +283,13 @@ program
   .option("--dry", "a rehearsal: leave the queue untouched and close each tab once it is filled")
   .option("--tailor", "write a resume for each job from your profile and attach that one instead of your file")
   .option("--cover", "also write a cover letter for a form that has a box for one")
+  .option("--sort <order>", "with no ids: fit (the default) or pay, highest stated pay first, then the jobs that state none, by fit")
+  .option("--min-pay <floor>", "with no ids: leave out jobs whose stated pay is under this, as in 30/h, 60k or CAD 35/h. A job that states no pay is kept")
   .option("--json")
   .action(async (ids: string[], o: ApplyOptions) => {
     documentsFromOptions(o);
-    const { reports } = await inRun("fill", () => pipeline(takeJobs(ids, { count: o.count, dry: !!o.dry }), { submit: false, dry: !!o.dry, fresh: false, quiet: !!o.json, fillOnly: true }));
+    const choice = choosing(o);
+    const { reports } = await inRun("fill", () => pipeline(takeJobs(ids, { count: o.count, dry: !!o.dry, ...choice }), { submit: false, dry: !!o.dry, fresh: false, quiet: !!o.json, fillOnly: true }));
     if (o.json) console.log(JSON.stringify(reports, null, 2));
     endIfAbandoned();
   });
@@ -690,6 +709,43 @@ program
       return changed;
     });
     console.log(`${e.job.company} | ${e.job.title} → ${status}${o.reason ? ` (${o.reason})` : ""}`);
+  });
+
+program
+  .command("import-applied <file>")
+  .description("Record applications you sent without the tool, from a CSV with Company and Job Link (or Role) columns, and Applied On if you have it, so no run applies to them again")
+  .option("--dry", "say what would be recorded, and record nothing")
+  .action((file: string, o: { dry?: boolean }) => {
+    const rows = parseAppliedCsv(readFileSync(file, "utf8"));
+    const say = (step: ImportStep, what: string) => console.log(`line ${step.row.line}  ${step.row.company}${step.row.title ? ` | ${step.row.title}` : ""}: ${what}`);
+    const at = (row: AppliedRow) => (row.appliedOn ? `${row.appliedOn}T12:00:00.000Z` : new Date().toISOString());
+    const steps = o.dry ? planImport(loadQueue().entries, rows) : withStore(() => {
+      const planned = mutateQueue((q) => {
+        const plan = planImport(q.entries, rows);
+        for (const step of plan) {
+          if (step.kind === "add" && !q.entries.some((e) => e.job.id === step.job.id)) q.entries.push(entryFor(step.job, null, null));
+          if (step.kind === "add" || step.kind === "mark") {
+            const id = step.kind === "add" ? step.job.id : step.id;
+            updateEntry(q, id, { status: "applied", statusReason: "applied outside the tool", waitingFor: null, appliedAt: at(step.row) });
+          }
+        }
+        return plan;
+      });
+      const changed = new Set(planned.flatMap((s) => (s.kind === "add" ? [s.job.id] : s.kind === "mark" ? [s.id] : [])));
+      let rowsOut = loadRows();
+      for (const e of loadQueue().entries) if (changed.has(e.job.id)) rowsOut = upsertEntry(rowsOut, e);
+      saveRows(rowsOut);
+      return planned;
+    });
+    const verb = o.dry ? "would be" : "";
+    for (const step of steps) {
+      if (step.kind === "mark") say(step, `${verb || "now"} recorded as applied (it was in the queue)`);
+      else if (step.kind === "add") say(step, `${verb || "now"} recorded as applied (new to the queue, so a later search will not offer it)`);
+      else if (step.kind === "known") say(step, "already on record as applied");
+      else say(step, `left out: ${step.why}`);
+    }
+    const n = (k: ImportStep["kind"]) => steps.filter((s) => s.kind === k).length;
+    console.log(`\n${n("mark") + n("add")} ${o.dry ? "to record" : "recorded"}, ${n("known")} already on record, ${n("unmatched")} left out`);
   });
 
 // ------------------------------------------------------------- the records

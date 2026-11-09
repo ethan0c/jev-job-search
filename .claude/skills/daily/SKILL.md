@@ -39,6 +39,8 @@ question at a time:
 - Internships, new-grad roles, or both?
 - Is there a fit score below which you would rather not apply? Show the
   spread in their queue (`npx jev queue`) so the number means something.
+- A lowest pay? (`minPay`, as `30/h` or `60k`.) Say that most postings
+  state no pay and those are kept.
 - Any employers to leave out?
 - A resume written for each job, and a cover letter where a form has a
   box for one? This takes longer per job.

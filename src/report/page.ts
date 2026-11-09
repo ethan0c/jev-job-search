@@ -134,6 +134,7 @@ ${embedded}
       '<div><label>Applications a day (at most ' + L.maxTarget + ')</label><input type="number" id="pTarget" min="1" max="' + L.maxTarget + '" value="' + esc(p.target) + '"></div>' +
       '<div><label>Most JEV may cost in a day, in dollars (JEV only: Claude is on your subscription or your own key, and is not counted)</label><input type="number" id="pBudget" min="0" step="0.05" value="' + esc(p.jevBudgetUsd) + '"></div>' +
       '<div><label>Lowest fit score, 0 to 1</label><input type="number" id="pScore" min="0" max="1" step="0.05" value="' + esc(p.minScore) + '"></div>' +
+      '<div><label>Lowest stated pay, as 30/h, 60k or CAD 35/h (empty: no floor; a job that states no pay is kept)</label><input type="text" id="pMinPay" value="' + esc(p.minPay ?? "") + '"></div>' +
       '<div><label>Where: vancouver, canada, remote, us, international (empty: anywhere)</label><input type="text" id="pWhere" value="' + esc(list(p.where)) + '"></div>' +
       '<div><label>Kinds: internship, new_grad (empty: both)</label><input type="text" id="pLevels" value="' + esc(list(p.levels)) + '"></div>' +
       '<div><label>Boards: greenhouse, lever, ashby, workday (empty: all)</label><input type="text" id="pBoards" value="' + esc(list(p.boards)) + '"></div>' +
@@ -211,7 +212,7 @@ ${embedded}
     }
     const mok = t.closest("[data-mail-ok]"); if (mok) { const box = mok.closest("[data-mail]"); const jobId = box.querySelector("[data-mjob]").value; if (!jobId) return; await act("/api/mail", { id: mok.dataset.mailOk, jobId, kind: box.querySelector("[data-mkind]").value }); return; }
     const mno = t.closest("[data-mail-no]"); if (mno) { await act("/api/mail", { id: mno.dataset.mailNo }); return; }
-    if (t.id === "pSave") { await act("/api/policy", { target: Number($("#pTarget").value), jevBudgetUsd: Number($("#pBudget").value), minScore: Number($("#pScore").value), where: words("pWhere"), levels: words("pLevels"), boards: words("pBoards"), excludeEmployers: words("pExclude"), documents: { tailor: $("#pTailor").checked, cover: $("#pCover").checked } }, "saved-policy"); return; }
+    if (t.id === "pSave") { await act("/api/policy", { target: Number($("#pTarget").value), jevBudgetUsd: Number($("#pBudget").value), minScore: Number($("#pScore").value), minPay: $("#pMinPay").value.trim(), where: words("pWhere"), levels: words("pLevels"), boards: words("pBoards"), excludeEmployers: words("pExclude"), documents: { tailor: $("#pTailor").checked, cover: $("#pCover").checked } }, "saved-policy"); return; }
     if (t.id === "autoPause") { await act("/api/schedule", { on: false }, "saved-auto"); return; }
     if (t.id === "autoStop") { await act("/api/stop", {}, "saved-auto"); return; }
   });

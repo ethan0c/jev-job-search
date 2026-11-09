@@ -7,6 +7,15 @@ import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
 import { DAILY, DISCOVER, PATHS } from "../config.js";
 import type { QueueEntry } from "../jobs/queue.js";
+import { meetsFloor, parsePayFloor, payOf, type PayFloor } from "../jobs/pay.js";
+
+const floorOrNull = (s: string): PayFloor | null => {
+  try {
+    return parsePayFloor(s);
+  } catch {
+    return null;
+  }
+};
 
 export const Policy = z.object({
   version: z.literal(1).default(1),
@@ -16,6 +25,11 @@ export const Policy = z.object({
   where: z.array(z.enum(["vancouver", "canada", "remote", "us", "international", "unclear"])).default([]),
   /** Which kinds of job: internship, new_grad. Empty means both. */
   levels: z.array(z.enum(["internship", "new_grad"])).default([]),
+  /**
+   * The lowest stated pay, as in "30/h", "60k" or "CAD 35/h" (`parsePayFloor`). Empty means no floor.
+   * A job that states no pay, or states it in another currency, is not refused for it.
+   */
+  minPay: z.string().default("").refine((s) => !s.trim() || floorOrNull(s) !== null, { message: 'write it like "30/h", "60k" or "CAD 35/h"' }),
   /** The lowest fit score a job may have. */
   minScore: z.number().min(0).max(1).default(DISCOVER.applyThreshold),
   /** Which job boards, by the name in the queue: greenhouse, lever, ashby, workday and so on. Empty means every board the tool fills. */
@@ -44,6 +58,8 @@ export function policyRefuses(e: QueueEntry, p: Policy): string | null {
   if (excluded) return `you excluded ${excluded}`;
   if (p.boards.length && !p.boards.includes(e.job.ats)) return `${e.job.ats} is not one of your boards`;
   if ((e.fit?.score ?? 0) < p.minScore) return `its fit score is under ${p.minScore}`;
+  const floor = p.minPay.trim() ? floorOrNull(p.minPay) : null;
+  if (floor && meetsFloor(payOf(e.job), floor) === false) return `its stated pay is under ${floor.text}`;
   const tier = e.fit?.locationTier;
   if (p.where.length && !(tier && (p.where as string[]).includes(tier))) return `it is not in ${p.where.join(", ")}`;
   const level = (e.fit?.answers.level as { choice?: string } | undefined)?.choice;

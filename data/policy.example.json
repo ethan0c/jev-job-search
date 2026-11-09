@@ -4,6 +4,7 @@
   "where": ["vancouver", "canada", "remote"],
   "levels": ["internship"],
   "minScore": 0.5,
+  "minPay": "",
   "boards": [],
   "excludeEmployers": ["Example Corp"],
   "documents": { "tailor": false, "cover": false },

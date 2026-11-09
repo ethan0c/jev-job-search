@@ -161,13 +161,44 @@ export const FIT_WEIGHTS = {
   interviewPractical: 0.05,
 } as const;
 
+/**
+ * Where a job is, weighed against the candidate's own profile (`preferences.preferredLocations`,
+ * `workAuthorization.authorizedCountries`), never against a city written here.
+ */
 export const LOCATION_MULTIPLIER = {
-  vancouver: 1.0,
-  canada: 0.92,
-  remote: 0.9,
-  us: 0.75,
+  /** In or near a place the profile lists in preferredLocations. */
+  preferred: 1.0,
+  /** Elsewhere in a country the candidate may work in without sponsorship. */
+  authorizedCountry: 0.92,
+  /** In Canada or the United States where the candidate would need sponsorship, or remote restricted to such a country. */
+  otherCountry: 0.75,
   international: 0.6,
   unclear: 0.7,
+} as const;
+
+/**
+ * A remote job, by `preferences.remote`. `last_resort` keeps a good remote job above
+ * `DISCOVER.applyThreshold` but ranks it under the same job in person; `no` lets only a very
+ * strong one stay in the queue. A posting that offers an office the candidate wants as well as
+ * remote is weighed by the office.
+ */
+export const REMOTE_MULTIPLIER = {
+  preferred: 1.0,
+  open: 0.9,
+  last_resort: 0.65,
+  no: 0.4,
+} as const;
+
+/** Pay read from a posting's text (`src/jobs/pay.ts`). */
+export const PAY = {
+  /** The currency of a pay floor that names none, as in `--min-pay 30/h`. */
+  defaultCurrency: "USD",
+  /** Paid hours in a year, to compare an hourly rate with a salary. */
+  hoursPerYear: 2080,
+  /** How far before an amount a word like "salary" or "pay" may be for the amount to count as pay. */
+  contextChars: 120,
+  /** Amounts outside these are not pay (a funding round, a stipend, a typo), by period. */
+  plausible: { hour: [7, 500], week: [280, 20000], month: [1000, 60000], year: [12000, 1000000] },
 } as const;
 
 /** Applied when the posting asks for a graduation date the candidate does not have. They can still apply, so it ranks lower instead of being dropped. */

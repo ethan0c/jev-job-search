@@ -37,6 +37,7 @@ cp data/policy.example.json data/policy.json
 | `where` | Where a job may be: `vancouver`, `canada`, `remote`, `us`, `international`, `unclear` | anywhere your search kept |
 | `levels` | `internship`, `new_grad` | both |
 | `minScore` | The lowest fit score a job may have, 0 to 1 | the search's own threshold |
+| `minPay` | The lowest stated pay, as `30/h`, `60k` or `CAD 35/h`. A job that states no pay is kept | no floor |
 | `boards` | Job boards by name: `greenhouse`, `lever`, `ashby`, `workday` and so on | every board the tool fills |
 | `excludeEmployers` | Employers the daily run never applies to. A name matches any company that contains it | none |
 | `documents` | `tailor`: a resume written for each job. `cover`: a cover letter where a form has a box for one | your profile's own resume |

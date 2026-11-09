@@ -125,6 +125,37 @@ cover the level, the term, how well your skills and experience match, where
 the job is, and whether it asks for a graduation date that is not yours.
 The answers become one score, and the queue is ranked by that score.
 
+Where a job is counts by your own profile, not by a fixed list of cities.
+A job in a place you put in `preferences.preferredLocations` ranks first,
+then the rest of the countries you may work in, then places where you would
+need sponsorship. A remote job ranks by `preferences.remote`: `preferred`,
+`open`, `last_resort` (kept, but under the same job in an office) or `no`
+(only a very strong one stays in the queue). A posting that offers an office
+you listed and remote as well counts as the office. The reasons for a score
+say when the place changed it ("in a place you listed", "remote, ranked
+last as you asked").
+
+### Pay
+
+Where a posting states its pay, the tool reads the range from the posting's
+text ("$40 to $48 an hour", "CA$125K to CA$130K"). `npx jev queue` shows it
+next to the job. Most postings state none; those are never treated as
+paying less.
+
+```bash
+npx jev apply --count 20 --submit --min-pay 30/h   # leave out jobs that state less than $30 an hour
+npx jev apply --count 20 --submit --sort pay        # highest stated pay first
+npx jev queue --sort pay --min-pay 60k              # look before you run
+```
+
+A floor is in US dollars unless you name the currency (`CAD 35/h`). It
+judges by the top of a posting's range, and a job that states no pay, or
+states it in another currency, is kept. `--sort pay` puts the jobs that
+state pay first, highest first, and the rest after them by fit. That
+pushes a weaker fit that happens to state good pay ahead of a stronger one
+that states none, so the default stays by fit. The daily run takes a floor
+as `minPay` in `data/policy.json` and never sorts by pay.
+
 The tool does not drop a job only because it asks for another graduation
 date. It ranks the job lower and leaves the choice to you.
 
@@ -242,6 +273,23 @@ npx jev log --open
 
 The column names never change, so a script can rely on them. For the same
 rows as JSON, run `npx jev log --json`.
+
+### Applications you sent without the tool
+
+The tool knows only what it sent. To keep it from applying again to jobs you
+applied to on your own, give it a CSV with a `Company` column, a `Job Link`
+column, and `Role` and `Applied On` if you have them:
+
+```bash
+npx jev import-applied ~/Downloads/applied-elsewhere.csv --dry   # see what it would record
+npx jev import-applied ~/Downloads/applied-elsewhere.csv
+```
+
+A row with a link is recorded as applied, and a job new to the queue is
+added so a later search keeps it as applied. A row with no link is matched
+by employer and exact title, and only when exactly one queued job fits;
+anything less certain is listed and left for you, since a wrong guess would
+hide a job you never applied to. Running it twice changes nothing.
 
 ### Jobs left for you
 

@@ -121,7 +121,8 @@ export const ProfileSchema = z.object({
     /** What goes in a salary box that will not submit empty, when salaryExpectation is empty. */
     salaryIfRequired: z.string().default("Negotiable"),
     willingToRelocate: YesNo,
-    remote: z.enum(["preferred", "open", "no"]),
+    /** How a remote job ranks (`REMOTE_MULTIPLIER`) and what a form is told: "last_resort" is open to remote but wants an office first. */
+    remote: z.enum(["preferred", "open", "last_resort", "no"]),
     preferredLocations: z.array(z.string()),
     howDidYouHear: z.string(),
     /** What to do when a form requires references. "skip" logs and moves on. */
